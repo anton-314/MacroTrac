@@ -5,6 +5,7 @@ import dev.antonlammers.macrotrac.domain.model.DailyGoal
 import dev.antonlammers.macrotrac.domain.model.FoodEntry
 import dev.antonlammers.macrotrac.fake.FakeFoodEntryRepository
 import dev.antonlammers.macrotrac.fake.FakeGoalRepository
+import dev.antonlammers.macrotrac.fake.FakeWeightRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -24,6 +25,7 @@ class OverviewViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var foodEntryRepo: FakeFoodEntryRepository
     private lateinit var goalRepo: FakeGoalRepository
+    private lateinit var weightRepo: FakeWeightRepository
     private lateinit var viewModel: OverviewViewModel
 
     @Before
@@ -31,7 +33,8 @@ class OverviewViewModelTest {
         Dispatchers.setMain(testDispatcher)
         foodEntryRepo = FakeFoodEntryRepository()
         goalRepo = FakeGoalRepository()
-        viewModel = OverviewViewModel(foodEntryRepo, goalRepo)
+        weightRepo = FakeWeightRepository()
+        viewModel = OverviewViewModel(foodEntryRepo, goalRepo, weightRepo)
     }
 
     @After

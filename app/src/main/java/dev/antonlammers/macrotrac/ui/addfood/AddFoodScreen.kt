@@ -42,6 +42,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import dev.antonlammers.macrotrac.domain.model.Food
+import dev.antonlammers.macrotrac.domain.model.FoodEntry
 import dev.antonlammers.macrotrac.domain.model.MealCategory
 import dev.antonlammers.macrotrac.ui.navigation.Screen
 
@@ -52,6 +53,7 @@ fun AddFoodScreen(
     viewModel: AddFoodViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val recentFoods by viewModel.recentFoods.collectAsStateWithLifecycle()
 
     LaunchedEffect(state.entryAdded) {
         if (state.entryAdded) {
@@ -139,6 +141,21 @@ fun AddFoodScreen(
                     )
                 }
 
+                state.query.isEmpty() && recentFoods.isNotEmpty() -> LazyColumn {
+                    item {
+                        Text(
+                            "Zuletzt gegessen",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+                    items(recentFoods, key = { it.id }) { entry ->
+                        RecentFoodRow(entry = entry, onClick = { viewModel.selectRecentFood(entry) })
+                        HorizontalDivider()
+                    }
+                }
+
                 else -> LazyColumn {
                     items(state.results, key = { it.id }) { food ->
                         FoodResultRow(food = food, onClick = { viewModel.selectFood(food) })
@@ -147,6 +164,35 @@ fun AddFoodScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RecentFoodRow(entry: FoodEntry, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Text(
+            buildString {
+                append(entry.foodName)
+                entry.brand?.let { append(" ($it)") }
+            },
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            buildString {
+                append("${entry.kcal.toInt()} kcal")
+                append(" · ${entry.amountGrams.toInt()} g")
+                append(" · ${entry.proteinG.toInt()}g P")
+                append(" · ${entry.carbsG.toInt()}g K")
+                append(" · ${entry.fatG.toInt()}g F")
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

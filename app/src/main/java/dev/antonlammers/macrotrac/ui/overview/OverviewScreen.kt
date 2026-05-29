@@ -19,11 +19,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -36,6 +41,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -52,6 +61,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import dev.antonlammers.macrotrac.domain.model.FoodEntry
 import dev.antonlammers.macrotrac.domain.model.MealCategory
+import dev.antonlammers.macrotrac.domain.model.WeightEntry
 import dev.antonlammers.macrotrac.ui.navigation.Screen
 import dev.antonlammers.macrotrac.ui.theme.CalorieColor
 import dev.antonlammers.macrotrac.ui.theme.CarbsColor
@@ -98,8 +108,8 @@ fun OverviewScreen(
                     TextButton(onClick = { navController.navigate(Screen.Goals.route) }) {
                         Text("Ziele")
                     }
-                    TextButton(onClick = { navController.navigate(Screen.Data.route) }) {
-                        Text("Daten")
+                    TextButton(onClick = { navController.navigate(Screen.Stats.route) }) {
+                        Text("Statistik")
                     }
                 },
             )
@@ -118,6 +128,7 @@ fun OverviewScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item { MacroSummaryCard(state = state) }
+            item { WeightCard(weight = state.todayWeight, onSave = viewModel::saveWeight) }
             if (state.entries.isEmpty()) {
                 item {
                     Box(
@@ -291,6 +302,75 @@ private fun SecondaryMacro(label: String, value: Double, unit: String) {
             fontWeight = FontWeight.Medium,
         )
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun WeightCard(weight: WeightEntry?, onSave: (Double) -> Unit) {
+    var showDialog by remember { mutableStateOf(false) }
+    var input by remember { mutableStateOf("") }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Gewicht eintragen") },
+            text = {
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    label = { Text("kg") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    input.toDoubleOrNull()?.let { onSave(it) }
+                    showDialog = false
+                }) { Text("Speichern") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) { Text("Abbrechen") }
+            },
+        )
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                input = weight?.weightKg?.let {
+                    if (it % 1.0 == 0.0) it.toInt().toString() else it.toString()
+                } ?: ""
+                showDialog = true
+            },
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 20.dp, vertical = 14.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Gewicht heute", style = MaterialTheme.typography.titleSmall)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    weight?.let { "${it.weightKg} kg" } ?: "– kg",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                )
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = "Bearbeiten",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 

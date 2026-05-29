@@ -8,16 +8,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dev.antonlammers.macrotrac.ui.addfood.AddFoodScreen
 import dev.antonlammers.macrotrac.ui.addfood.BarcodeScannerScreen
-import dev.antonlammers.macrotrac.ui.data.DataScreen
 import dev.antonlammers.macrotrac.ui.goals.GoalsScreen
 import dev.antonlammers.macrotrac.ui.overview.OverviewScreen
+import dev.antonlammers.macrotrac.ui.stats.StatsScreen
 
 sealed class Screen(val route: String) {
     object Overview : Screen("overview")
     object AddFood : Screen("add_food")
     object Goals : Screen("goals")
     object BarcodeScanner : Screen("barcode_scanner")
-    object Data : Screen("data")
+    object Stats : Screen("stats")
 }
 
 @ExperimentalGetImage
@@ -28,6 +28,6 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         composable(Screen.AddFood.route) { AddFoodScreen(navController) }
         composable(Screen.Goals.route) { GoalsScreen(navController) }
         composable(Screen.BarcodeScanner.route) { BarcodeScannerScreen(navController) }
-        composable(Screen.Data.route) { DataScreen(navController) }
+        composable(Screen.Stats.route) { StatsScreen(navController) }
     }
 }

@@ -16,6 +16,18 @@ class FakeFoodEntryRepository : FoodEntryRepository {
     override fun entriesForDate(date: LocalDate): Flow<List<FoodEntry>> =
         _entries.map { list -> list.filter { it.date == date } }
 
+    override fun entriesInRange(from: LocalDate, to: LocalDate): Flow<List<FoodEntry>> =
+        _entries.map { list ->
+            list.filter { it.date >= from && it.date <= to }.sortedBy { it.date }
+        }
+
+    override fun recentFoods(limit: Int): Flow<List<FoodEntry>> =
+        _entries.map { list ->
+            list.sortedByDescending { it.timestampMs }
+                .distinctBy { it.foodName }
+                .take(limit)
+        }
+
     override suspend fun allEntries(): List<FoodEntry> = _entries.value
 
     override suspend fun add(entry: FoodEntry) {

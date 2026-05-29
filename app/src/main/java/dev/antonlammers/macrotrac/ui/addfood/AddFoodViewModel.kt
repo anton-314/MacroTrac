@@ -9,8 +9,10 @@ import dev.antonlammers.macrotrac.domain.model.MealCategory
 import dev.antonlammers.macrotrac.domain.repository.FoodEntryRepository
 import dev.antonlammers.macrotrac.domain.repository.FoodSearchRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -24,6 +26,9 @@ class AddFoodViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(AddFoodUiState())
     val uiState: StateFlow<AddFoodUiState> = _uiState.asStateFlow()
+
+    val recentFoods: StateFlow<List<FoodEntry>> = foodEntryRepository.recentFoods()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun onQueryChange(query: String) = _uiState.update { it.copy(query = query) }
 
@@ -39,6 +44,24 @@ class AddFoodViewModel @Inject constructor(
     }
 
     fun selectFood(food: Food) = _uiState.update { it.copy(selectedFood = food, amountGrams = "100") }
+
+    fun selectRecentFood(entry: FoodEntry) {
+        val factor = if (entry.amountGrams > 0) 100.0 / entry.amountGrams else 1.0
+        val food = Food(
+            id = entry.foodName,
+            name = entry.foodName,
+            brand = entry.brand,
+            kcalPer100g = entry.kcal * factor,
+            proteinPer100g = entry.proteinG * factor,
+            carbsPer100g = entry.carbsG * factor,
+            fatPer100g = entry.fatG * factor,
+            sugarPer100g = entry.sugarG * factor,
+            fiberPer100g = entry.fiberG * factor,
+        )
+        val prevAmount = if (entry.amountGrams % 1.0 == 0.0) entry.amountGrams.toInt().toString()
+                         else entry.amountGrams.toString()
+        _uiState.update { it.copy(selectedFood = food, amountGrams = prevAmount) }
+    }
 
     fun dismissSelection() = _uiState.update { it.copy(selectedFood = null) }
 
