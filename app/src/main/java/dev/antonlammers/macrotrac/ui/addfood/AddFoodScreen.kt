@@ -53,6 +53,9 @@ import dev.antonlammers.macrotrac.domain.model.Food
 import dev.antonlammers.macrotrac.domain.model.FoodEntry
 import dev.antonlammers.macrotrac.domain.model.MealCategory
 import dev.antonlammers.macrotrac.ui.navigation.Screen
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +65,7 @@ fun AddFoodScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val recentFoods by viewModel.recentFoods.collectAsStateWithLifecycle()
+    val recentEntries by viewModel.recentEntries.collectAsStateWithLifecycle()
     val customFoods by viewModel.customFoods.collectAsStateWithLifecycle()
 
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -170,6 +174,28 @@ fun AddFoodScreen(
                                 onDelete = { viewModel.deleteCustomFood(food) },
                             )
                             HorizontalDivider()
+                        }
+                    }
+
+                    if (recentEntries.isNotEmpty()) {
+                        item { SectionLabel("Verlauf") }
+                        val grouped = recentEntries
+                            .groupBy { it.date }
+                            .entries
+                            .sortedByDescending { it.key }
+                        grouped.forEach { (date, entries) ->
+                            item(key = "header_$date") {
+                                Text(
+                                    date.formatRelative(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 2.dp),
+                                )
+                            }
+                            items(entries, key = { "history_${it.id}" }) { entry ->
+                                RecentFoodRow(entry = entry, onClick = { viewModel.selectRecentFood(entry) })
+                                HorizontalDivider()
+                            }
                         }
                     }
                 }
@@ -429,6 +455,15 @@ private fun AmountDialog(
             TextButton(onClick = onDismiss) { Text("Abbrechen") }
         },
     )
+}
+
+private fun LocalDate.formatRelative(): String {
+    val today = LocalDate.now()
+    return when (this) {
+        today -> "Heute"
+        today.minusDays(1) -> "Gestern"
+        else -> format(DateTimeFormatter.ofPattern("EEE, d. MMM", Locale("de")))
+    }
 }
 
 private fun MealCategory.displayName() = when (this) {

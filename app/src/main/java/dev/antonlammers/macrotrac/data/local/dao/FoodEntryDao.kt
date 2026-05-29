@@ -14,8 +14,8 @@ interface FoodEntryDao {
     @Query("SELECT * FROM food_entries WHERE date >= :from AND date <= :to ORDER BY date ASC, timestampMs ASC")
     fun entriesInRange(from: String, to: String): Flow<List<FoodEntryEntity>>
 
-    @Query("SELECT * FROM food_entries ORDER BY timestampMs DESC LIMIT 100")
-    fun recentEntries(): Flow<List<FoodEntryEntity>>
+    @Query("SELECT * FROM food_entries ORDER BY timestampMs DESC LIMIT :limit")
+    fun recentEntries(limit: Int): Flow<List<FoodEntryEntity>>
 
     @Insert
     suspend fun insert(entry: FoodEntryEntity)

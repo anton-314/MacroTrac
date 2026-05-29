@@ -32,6 +32,9 @@ class AddFoodViewModel @Inject constructor(
     val recentFoods: StateFlow<List<FoodEntry>> = foodEntryRepository.recentFoods()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val recentEntries: StateFlow<List<FoodEntry>> = foodEntryRepository.recentEntries()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val customFoods: StateFlow<List<Food>> = customFoodRepository.allFoods()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

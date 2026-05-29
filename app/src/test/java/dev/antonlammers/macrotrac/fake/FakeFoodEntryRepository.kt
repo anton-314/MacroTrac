@@ -28,6 +28,11 @@ class FakeFoodEntryRepository : FoodEntryRepository {
                 .take(limit)
         }
 
+    override fun recentEntries(limit: Int): Flow<List<FoodEntry>> =
+        _entries.map { list ->
+            list.sortedByDescending { it.timestampMs }.take(limit)
+        }
+
     override suspend fun allEntries(): List<FoodEntry> = _entries.value
 
     override suspend fun add(entry: FoodEntry) {
