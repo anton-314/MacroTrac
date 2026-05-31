@@ -1,5 +1,6 @@
 package dev.antonlammers.macrotrac.ui.addfood
 
+import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import dev.antonlammers.macrotrac.domain.model.Food
 import dev.antonlammers.macrotrac.fake.FakeCustomFoodRepository
@@ -19,6 +20,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AddFoodViewModelTest {
@@ -42,7 +44,7 @@ class AddFoodViewModelTest {
     @Test
     fun `search updates results on success`() = runTest {
         searchRepo = FakeFoodSearchRepository(searchResult = Result.success(listOf(apple())))
-        viewModel = AddFoodViewModel(searchRepo, entryRepo, customRepo)
+        viewModel = AddFoodViewModel(SavedStateHandle(mapOf("date" to LocalDate.now().toString())), searchRepo, entryRepo, customRepo)
 
         viewModel.onQueryChange("apfel")
 
@@ -63,7 +65,7 @@ class AddFoodViewModelTest {
     @Test
     fun `search sets error on failure`() = runTest {
         searchRepo = FakeFoodSearchRepository(searchResult = Result.failure(Exception("Netzwerkfehler")))
-        viewModel = AddFoodViewModel(searchRepo, entryRepo, customRepo)
+        viewModel = AddFoodViewModel(SavedStateHandle(mapOf("date" to LocalDate.now().toString())), searchRepo, entryRepo, customRepo)
 
         viewModel.onQueryChange("xyz")
 
@@ -83,7 +85,7 @@ class AddFoodViewModelTest {
     @Test
     fun `blank query does not trigger search`() = runTest {
         searchRepo = FakeFoodSearchRepository()
-        viewModel = AddFoodViewModel(searchRepo, entryRepo, customRepo)
+        viewModel = AddFoodViewModel(SavedStateHandle(mapOf("date" to LocalDate.now().toString())), searchRepo, entryRepo, customRepo)
 
         viewModel.uiState.test {
             awaitItem()
@@ -96,7 +98,7 @@ class AddFoodViewModelTest {
     @Test
     fun `confirmAdd with valid amount saves entry and signals entryAdded`() = runTest {
         searchRepo = FakeFoodSearchRepository()
-        viewModel = AddFoodViewModel(searchRepo, entryRepo, customRepo)
+        viewModel = AddFoodViewModel(SavedStateHandle(mapOf("date" to LocalDate.now().toString())), searchRepo, entryRepo, customRepo)
 
         viewModel.selectFood(apple())
         viewModel.onAmountChange("150")
@@ -113,7 +115,7 @@ class AddFoodViewModelTest {
     @Test
     fun `confirmAdd with invalid amount does nothing`() = runTest {
         searchRepo = FakeFoodSearchRepository()
-        viewModel = AddFoodViewModel(searchRepo, entryRepo, customRepo)
+        viewModel = AddFoodViewModel(SavedStateHandle(mapOf("date" to LocalDate.now().toString())), searchRepo, entryRepo, customRepo)
 
         viewModel.selectFood(apple())
         viewModel.onAmountChange("abc")
@@ -128,7 +130,7 @@ class AddFoodViewModelTest {
     @Test
     fun `confirmAdd scales macros by amount`() = runTest {
         searchRepo = FakeFoodSearchRepository()
-        viewModel = AddFoodViewModel(searchRepo, entryRepo, customRepo)
+        viewModel = AddFoodViewModel(SavedStateHandle(mapOf("date" to LocalDate.now().toString())), searchRepo, entryRepo, customRepo)
 
         viewModel.selectFood(apple()) // 52 kcal / 100g
         viewModel.onAmountChange("200")
@@ -150,7 +152,7 @@ class AddFoodViewModelTest {
     @Test
     fun `handleBarcode selects found product`() = runTest {
         searchRepo = FakeFoodSearchRepository(barcodeResult = Result.success(apple()))
-        viewModel = AddFoodViewModel(searchRepo, entryRepo, customRepo)
+        viewModel = AddFoodViewModel(SavedStateHandle(mapOf("date" to LocalDate.now().toString())), searchRepo, entryRepo, customRepo)
 
         viewModel.uiState.test {
             awaitItem()
@@ -167,7 +169,7 @@ class AddFoodViewModelTest {
     @Test
     fun `handleBarcode sets error when product not found`() = runTest {
         searchRepo = FakeFoodSearchRepository(barcodeResult = Result.success(null))
-        viewModel = AddFoodViewModel(searchRepo, entryRepo, customRepo)
+        viewModel = AddFoodViewModel(SavedStateHandle(mapOf("date" to LocalDate.now().toString())), searchRepo, entryRepo, customRepo)
 
         viewModel.uiState.test {
             awaitItem()
@@ -183,7 +185,7 @@ class AddFoodViewModelTest {
     @Test
     fun `handleBarcode sets error on network failure`() = runTest {
         searchRepo = FakeFoodSearchRepository(barcodeResult = Result.failure(Exception("Timeout")))
-        viewModel = AddFoodViewModel(searchRepo, entryRepo, customRepo)
+        viewModel = AddFoodViewModel(SavedStateHandle(mapOf("date" to LocalDate.now().toString())), searchRepo, entryRepo, customRepo)
 
         viewModel.uiState.test {
             awaitItem()
@@ -197,7 +199,7 @@ class AddFoodViewModelTest {
     @Test
     fun `saveCustomFood saves food and selects it for amount dialog`() = runTest {
         searchRepo = FakeFoodSearchRepository()
-        viewModel = AddFoodViewModel(searchRepo, entryRepo, customRepo)
+        viewModel = AddFoodViewModel(SavedStateHandle(mapOf("date" to LocalDate.now().toString())), searchRepo, entryRepo, customRepo)
 
         val food = Food(
             id = "",
@@ -222,7 +224,7 @@ class AddFoodViewModelTest {
     @Test
     fun `saveCustomFood assigns a real id`() = runTest {
         searchRepo = FakeFoodSearchRepository()
-        viewModel = AddFoodViewModel(searchRepo, entryRepo, customRepo)
+        viewModel = AddFoodViewModel(SavedStateHandle(mapOf("date" to LocalDate.now().toString())), searchRepo, entryRepo, customRepo)
 
         viewModel.uiState.test {
             awaitItem()

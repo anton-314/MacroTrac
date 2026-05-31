@@ -112,7 +112,14 @@ fun AddFoodScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mahlzeit hinzufügen") },
+                title = {
+                    val isToday = viewModel.targetDate == LocalDate.now()
+                    if (isToday) {
+                        Text("Mahlzeit hinzufügen")
+                    } else {
+                        Text("Eintrag für ${viewModel.targetDate.formatRelative()}")
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")

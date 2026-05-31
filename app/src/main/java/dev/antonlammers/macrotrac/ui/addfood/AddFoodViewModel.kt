@@ -1,5 +1,6 @@
 package dev.antonlammers.macrotrac.ui.addfood
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,10 +22,14 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AddFoodViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val foodSearchRepository: FoodSearchRepository,
     private val foodEntryRepository: FoodEntryRepository,
     private val customFoodRepository: CustomFoodRepository,
 ) : ViewModel() {
+
+    val targetDate: LocalDate = savedStateHandle.get<String>("date")
+        ?.let { LocalDate.parse(it) } ?: LocalDate.now()
 
     private val _uiState = MutableStateFlow(AddFoodUiState())
     val uiState: StateFlow<AddFoodUiState> = _uiState.asStateFlow()
@@ -108,7 +113,7 @@ class AddFoodViewModel @Inject constructor(
                     sugarG = food.sugarPer100g * factor,
                     fiberG = food.fiberPer100g * factor,
                     mealCategory = state.mealCategory,
-                    date = LocalDate.now(),
+                    date = targetDate,
                     timestampMs = System.currentTimeMillis(),
                 )
             )

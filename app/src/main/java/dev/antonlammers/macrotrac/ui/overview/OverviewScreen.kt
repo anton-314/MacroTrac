@@ -26,6 +26,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
@@ -43,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -108,17 +112,11 @@ fun OverviewScreen(
                     if (state.date != LocalDate.now()) {
                         TextButton(onClick = viewModel::goToToday) { Text("Heute") }
                     }
-                    TextButton(onClick = { navController.navigate(Screen.Goals.route) }) {
-                        Text("Ziele")
-                    }
-                    TextButton(onClick = { navController.navigate(Screen.Stats.route) }) {
-                        Text("Statistik")
-                    }
                 },
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { navController.navigate(Screen.AddFood.route) }) {
+            FloatingActionButton(onClick = { navController.navigate(Screen.AddFood.withDate(state.date)) }) {
                 Icon(Icons.Default.Add, contentDescription = "Mahlzeit hinzufügen")
             }
         },
@@ -160,11 +158,38 @@ fun OverviewScreen(
                         )
                     }
                     items(categoryEntries, key = { it.id }) { entry ->
-                        FoodEntryRow(
-                            entry = entry,
-                            onEdit = { viewModel.update(it) },
-                            onDelete = { viewModel.delete(entry.id) },
+                        val dismissState = rememberSwipeToDismissBoxState(
+                            confirmValueChange = { it == SwipeToDismissBoxValue.EndToStart },
                         )
+                        LaunchedEffect(dismissState.currentValue) {
+                            if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
+                                viewModel.delete(entry.id)
+                            }
+                        }
+                        SwipeToDismissBox(
+                            state = dismissState,
+                            enableDismissFromStartToEnd = false,
+                            backgroundContent = {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.errorContainer)
+                                        .padding(horizontal = 16.dp),
+                                    contentAlignment = Alignment.CenterEnd,
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Löschen",
+                                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                                    )
+                                }
+                            },
+                        ) {
+                            FoodEntryRow(
+                                entry = entry,
+                                onEdit = { viewModel.update(it) },
+                            )
+                        }
                         HorizontalDivider()
                     }
                 }
@@ -404,7 +429,7 @@ private fun MealCategory.displayName() = when (this) {
 }
 
 @Composable
-private fun FoodEntryRow(entry: FoodEntry, onEdit: (FoodEntry) -> Unit, onDelete: () -> Unit) {
+private fun FoodEntryRow(entry: FoodEntry, onEdit: (FoodEntry) -> Unit) {
     var showEditDialog by remember { mutableStateOf(false) }
     var amountInput by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(entry.mealCategory) }
@@ -528,9 +553,6 @@ private fun FoodEntryRow(entry: FoodEntry, onEdit: (FoodEntry) -> Unit, onDelete
             showEditDialog = true
         }) {
             Icon(Icons.Default.Edit, contentDescription = "Bearbeiten")
-        }
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Default.Delete, contentDescription = "Löschen")
         }
     }
 }
