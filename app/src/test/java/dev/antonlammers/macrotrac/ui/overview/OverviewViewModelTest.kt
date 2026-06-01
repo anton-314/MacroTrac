@@ -73,17 +73,55 @@ class OverviewViewModelTest {
     }
 
     @Test
-    fun `deleting an entry removes it from state`() = runTest {
+    fun `deletePending hides entry immediately from state`() = runTest {
         viewModel.uiState.test {
             awaitItem() // initial
 
             foodEntryRepo.add(buildEntry(kcal = 200.0, date = LocalDate.now()))
             val afterAdd = awaitItem()
-            assertEquals(1, afterAdd.entries.size)
+            val entry = afterAdd.entries.first()
 
-            viewModel.delete(afterAdd.entries.first().id)
-            val afterDelete = awaitItem()
-            assertTrue(afterDelete.entries.isEmpty())
+            viewModel.deletePending(entry)
+            val afterPending = awaitItem()
+            assertTrue(afterPending.entries.isEmpty())
+        }
+    }
+
+    @Test
+    fun `confirmDelete removes entry from DB permanently`() = runTest {
+        viewModel.uiState.test {
+            awaitItem()
+
+            foodEntryRepo.add(buildEntry(kcal = 200.0, date = LocalDate.now()))
+            val afterAdd = awaitItem()
+            val entry = afterAdd.entries.first()
+
+            viewModel.deletePending(entry)
+            awaitItem() // hidden
+
+            viewModel.confirmDelete(entry)
+            // state stays empty — pending cleared, DB deleted
+            expectNoEvents()
+            assertTrue(viewModel.uiState.value.entries.isEmpty())
+        }
+    }
+
+    @Test
+    fun `undoDelete restores entry in state`() = runTest {
+        viewModel.uiState.test {
+            awaitItem()
+
+            foodEntryRepo.add(buildEntry(kcal = 200.0, date = LocalDate.now()))
+            val afterAdd = awaitItem()
+            val entry = afterAdd.entries.first()
+
+            viewModel.deletePending(entry)
+            awaitItem() // hidden
+
+            viewModel.undoDelete(entry)
+            val restored = awaitItem()
+            assertEquals(1, restored.entries.size)
+            assertEquals(200.0, restored.totalKcal, 0.001)
         }
     }
 

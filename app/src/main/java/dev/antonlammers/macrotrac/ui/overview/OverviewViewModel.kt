@@ -28,6 +28,7 @@ class OverviewViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _date = MutableStateFlow(LocalDate.now())
+    private val _pendingDelete = MutableStateFlow<FoodEntry?>(null)
 
     val uiState: StateFlow<OverviewUiState> = _date
         .flatMapLatest { date ->
@@ -35,8 +36,14 @@ class OverviewViewModel @Inject constructor(
                 foodEntryRepository.entriesForDate(date),
                 goalRepository.goal(),
                 weightRepository.entryForDate(date),
-            ) { entries, goal, weight ->
-                OverviewUiState(entries = entries, goal = goal, date = date, todayWeight = weight)
+                _pendingDelete,
+            ) { entries, goal, weight, pending ->
+                OverviewUiState(
+                    entries = if (pending != null) entries.filter { it.id != pending.id } else entries,
+                    goal = goal,
+                    date = date,
+                    todayWeight = weight,
+                )
             }
         }
         .stateIn(
@@ -53,8 +60,17 @@ class OverviewViewModel @Inject constructor(
         viewModelScope.launch { foodEntryRepository.update(entry) }
     }
 
-    fun delete(id: Long) {
-        viewModelScope.launch { foodEntryRepository.delete(id) }
+    fun deletePending(entry: FoodEntry) {
+        _pendingDelete.value = entry
+    }
+
+    fun confirmDelete(entry: FoodEntry) {
+        if (_pendingDelete.value?.id == entry.id) _pendingDelete.value = null
+        viewModelScope.launch { foodEntryRepository.delete(entry.id) }
+    }
+
+    fun undoDelete(entry: FoodEntry) {
+        if (_pendingDelete.value?.id == entry.id) _pendingDelete.value = null
     }
 
     fun saveWeight(weightKg: Double) {

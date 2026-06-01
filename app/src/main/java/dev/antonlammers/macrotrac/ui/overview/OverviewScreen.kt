@@ -42,6 +42,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -50,7 +54,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -85,6 +91,8 @@ fun OverviewScreen(
     viewModel: OverviewViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -120,6 +128,7 @@ fun OverviewScreen(
                 Icon(Icons.Default.Add, contentDescription = "Mahlzeit hinzufügen")
             }
         },
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -165,7 +174,21 @@ fun OverviewScreen(
                         val dismissState = rememberSwipeToDismissBoxState(
                             confirmValueChange = { value ->
                                 when (value) {
-                                    SwipeToDismissBoxValue.EndToStart -> true
+                                    SwipeToDismissBoxValue.EndToStart -> {
+                                        viewModel.deletePending(entry)
+                                        coroutineScope.launch {
+                                            val result = snackbar.showSnackbar(
+                                                message = "Eintrag gelöscht",
+                                                actionLabel = "Rückgängig",
+                                                duration = SnackbarDuration.Short,
+                                            )
+                                            when (result) {
+                                                SnackbarResult.ActionPerformed -> viewModel.undoDelete(entry)
+                                                SnackbarResult.Dismissed -> viewModel.confirmDelete(entry)
+                                            }
+                                        }
+                                        true
+                                    }
                                     SwipeToDismissBoxValue.StartToEnd -> {
                                         amountInput = entry.amountGrams.toInt().toString()
                                         selectedCategory = entry.mealCategory
@@ -176,11 +199,6 @@ fun OverviewScreen(
                                 }
                             }
                         )
-                        LaunchedEffect(dismissState.currentValue) {
-                            if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
-                                viewModel.delete(entry.id)
-                            }
-                        }
 
                         if (showEditDialog) {
                             EditFoodDialog(
