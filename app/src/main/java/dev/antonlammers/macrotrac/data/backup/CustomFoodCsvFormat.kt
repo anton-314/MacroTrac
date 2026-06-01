@@ -30,32 +30,21 @@ object CustomFoodCsvFormat {
 
     fun fromRow(row: String, headers: Map<String, Int>): Food? {
         val cols = CsvFormat.parseLine(row)
-        val name = cols.str(headers, NAME)?.takeIf { it.isNotBlank() } ?: return null
+        val name = cols.csvStr(headers, NAME)?.takeIf { it.isNotBlank() } ?: return null
         return Food(
             id = "",
             name = name,
-            brand = cols.str(headers, BRAND)?.takeIf { it.isNotBlank() },
-            kcalPer100g = cols.dbl(headers, KCAL) ?: 0.0,
-            proteinPer100g = cols.dbl(headers, PROTEIN) ?: 0.0,
-            carbsPer100g = cols.dbl(headers, CARBS) ?: 0.0,
-            fatPer100g = cols.dbl(headers, FAT) ?: 0.0,
-            sugarPer100g = cols.dbl(headers, SUGAR) ?: 0.0,
-            fiberPer100g = cols.dbl(headers, FIBER) ?: 0.0,
-            saltPer100g = cols.dbl(headers, SALT) ?: 0.0,
+            brand = cols.csvStr(headers, BRAND)?.takeIf { it.isNotBlank() },
+            kcalPer100g = cols.csvDbl(headers, KCAL) ?: 0.0,
+            proteinPer100g = cols.csvDbl(headers, PROTEIN) ?: 0.0,
+            carbsPer100g = cols.csvDbl(headers, CARBS) ?: 0.0,
+            fatPer100g = cols.csvDbl(headers, FAT) ?: 0.0,
+            sugarPer100g = cols.csvDbl(headers, SUGAR) ?: 0.0,
+            fiberPer100g = cols.csvDbl(headers, FIBER) ?: 0.0,
+            saltPer100g = cols.csvDbl(headers, SALT) ?: 0.0,
         )
     }
 
     fun parseHeaders(headerLine: String): Map<String, Int> =
         headerLine.split(",").mapIndexed { i, h -> h.trim() to i }.toMap()
-
-    private fun String.escapeCsv(): String =
-        if (any { it == ',' || it == '"' || it == '\n' })
-            "\"${replace("\"", "\"\"")}\""
-        else this
-
-    private fun List<String>.str(headers: Map<String, Int>, col: String): String? =
-        headers[col]?.let { getOrNull(it)?.trim() }
-
-    private fun List<String>.dbl(headers: Map<String, Int>, col: String): Double? =
-        str(headers, col)?.toDoubleOrNull()
 }

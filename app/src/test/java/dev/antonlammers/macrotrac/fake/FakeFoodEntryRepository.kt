@@ -21,13 +21,6 @@ class FakeFoodEntryRepository : FoodEntryRepository {
             list.filter { it.date >= from && it.date <= to }.sortedBy { it.date }
         }
 
-    override fun recentFoods(limit: Int): Flow<List<FoodEntry>> =
-        _entries.map { list ->
-            list.sortedByDescending { it.timestampMs }
-                .distinctBy { it.foodName }
-                .take(limit)
-        }
-
     override fun recentEntries(limit: Int): Flow<List<FoodEntry>> =
         _entries.map { list ->
             list.sortedByDescending { it.timestampMs }.take(limit)

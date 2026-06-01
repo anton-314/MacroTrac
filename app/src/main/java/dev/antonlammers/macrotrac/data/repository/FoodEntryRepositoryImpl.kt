@@ -20,13 +20,6 @@ class FoodEntryRepositoryImpl @Inject constructor(
     override fun entriesInRange(from: LocalDate, to: LocalDate): Flow<List<FoodEntry>> =
         dao.entriesInRange(from.toString(), to.toString()).map { entities -> entities.map { it.toDomain() } }
 
-    override fun recentFoods(limit: Int): Flow<List<FoodEntry>> =
-        dao.recentEntries(100).map { entities ->
-            entities.map { it.toDomain() }
-                .distinctBy { it.foodName }
-                .take(limit)
-        }
-
     override fun recentEntries(limit: Int): Flow<List<FoodEntry>> =
         dao.recentEntries(limit).map { entities -> entities.map { it.toDomain() } }
 

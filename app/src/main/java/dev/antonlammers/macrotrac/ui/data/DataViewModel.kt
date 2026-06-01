@@ -47,6 +47,7 @@ class DataViewModel @Inject constructor(
                         if (result.foodImported > 0 || result.foodSkipped > 0) add(food)
                         if (result.weightImported > 0) add("${result.weightImported} Gewichtseinträge")
                         if (result.goalRestored) add("Ziele wiederhergestellt")
+                        if (result.customFoodsImported > 0) add("${result.customFoodsImported} eigene Lebensmittel")
                     }
                     val msg = if (parts.isEmpty()) "Nichts importiert" else parts.joinToString(", ")
                     _uiState.update { it.copy(isLoading = false, message = msg) }

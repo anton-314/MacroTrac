@@ -33,39 +33,33 @@ object CsvFormat {
      */
     fun fromRow(row: String, headers: Map<String, Int>): FoodEntry? {
         val cols = parseLine(row)
-        val date = cols.str(headers, CsvColumns.DATE)?.let {
+        val date = cols.csvStr(headers, CsvColumns.DATE)?.let {
             runCatching { LocalDate.parse(it) }.getOrNull()
         } ?: return null
-        val foodName = cols.str(headers, CsvColumns.FOOD_NAME)?.takeIf { it.isNotBlank() }
+        val foodName = cols.csvStr(headers, CsvColumns.FOOD_NAME)?.takeIf { it.isNotBlank() }
             ?: return null
         return FoodEntry(
             foodName = foodName,
-            brand = cols.str(headers, CsvColumns.BRAND)?.takeIf { it.isNotBlank() },
-            amountGrams = cols.dbl(headers, CsvColumns.AMOUNT_GRAMS) ?: 100.0,
-            kcal = cols.dbl(headers, CsvColumns.KCAL) ?: 0.0,
-            proteinG = cols.dbl(headers, CsvColumns.PROTEIN_G) ?: 0.0,
-            carbsG = cols.dbl(headers, CsvColumns.CARBS_G) ?: 0.0,
-            fatG = cols.dbl(headers, CsvColumns.FAT_G) ?: 0.0,
-            sugarG = cols.dbl(headers, CsvColumns.SUGAR_G) ?: 0.0,
-            fiberG = cols.dbl(headers, CsvColumns.FIBER_G) ?: 0.0,
-            saltG = cols.dbl(headers, CsvColumns.SALT_G) ?: 0.0,
-            mealCategory = cols.str(headers, CsvColumns.MEAL_CATEGORY)
+            brand = cols.csvStr(headers, CsvColumns.BRAND)?.takeIf { it.isNotBlank() },
+            amountGrams = cols.csvDbl(headers, CsvColumns.AMOUNT_GRAMS) ?: 100.0,
+            kcal = cols.csvDbl(headers, CsvColumns.KCAL) ?: 0.0,
+            proteinG = cols.csvDbl(headers, CsvColumns.PROTEIN_G) ?: 0.0,
+            carbsG = cols.csvDbl(headers, CsvColumns.CARBS_G) ?: 0.0,
+            fatG = cols.csvDbl(headers, CsvColumns.FAT_G) ?: 0.0,
+            sugarG = cols.csvDbl(headers, CsvColumns.SUGAR_G) ?: 0.0,
+            fiberG = cols.csvDbl(headers, CsvColumns.FIBER_G) ?: 0.0,
+            saltG = cols.csvDbl(headers, CsvColumns.SALT_G) ?: 0.0,
+            mealCategory = cols.csvStr(headers, CsvColumns.MEAL_CATEGORY)
                 ?.let { runCatching { MealCategory.valueOf(it) }.getOrNull() }
                 ?: MealCategory.SNACK,
             date = date,
-            timestampMs = cols.dbl(headers, CsvColumns.TIMESTAMP_MS)?.toLong()
+            timestampMs = cols.csvDbl(headers, CsvColumns.TIMESTAMP_MS)?.toLong()
                 ?: System.currentTimeMillis(),
         )
     }
 
     fun parseHeaders(headerLine: String): Map<String, Int> =
         headerLine.split(",").mapIndexed { i, h -> h.trim() to i }.toMap()
-
-    // RFC-4180 quoting: wrap in " if value contains comma, quote, or newline
-    private fun String.escapeCsv(): String =
-        if (any { it == ',' || it == '"' || it == '\n' })
-            "\"${replace("\"", "\"\"")}\""
-        else this
 
     // RFC-4180 parser: handles quoted fields with embedded commas and escaped quotes
     internal fun parseLine(line: String): List<String> {
@@ -90,9 +84,16 @@ object CsvFormat {
         return result
     }
 
-    private fun List<String>.str(headers: Map<String, Int>, col: String): String? =
-        headers[col]?.let { getOrNull(it)?.trim() }
-
-    private fun List<String>.dbl(headers: Map<String, Int>, col: String): Double? =
-        str(headers, col)?.toDoubleOrNull()
 }
+
+// Shared CSV helpers — used by CsvFormat and CustomFoodCsvFormat
+internal fun String.escapeCsv(): String =
+    if (any { it == ',' || it == '"' || it == '\n' })
+        "\"${replace("\"", "\"\"")}\""
+    else this
+
+internal fun List<String>.csvStr(headers: Map<String, Int>, col: String): String? =
+    headers[col]?.let { getOrNull(it)?.trim() }
+
+internal fun List<String>.csvDbl(headers: Map<String, Int>, col: String): Double? =
+    csvStr(headers, col)?.toDoubleOrNull()

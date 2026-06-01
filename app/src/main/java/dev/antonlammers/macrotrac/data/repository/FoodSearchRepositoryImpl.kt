@@ -28,23 +28,4 @@ class FoodSearchRepositoryImpl @Inject constructor(
             saltPer100g = nutriments.saltPer100g ?: 0.0,
         )
     }
-
-    override suspend fun search(query: String): Result<List<Food>> = runCatching {
-        api.search(query).products.mapNotNull { dto ->
-            val name = dto.productName?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            val nutriments = dto.nutriments ?: return@mapNotNull null
-            Food(
-                id = dto.id ?: name,
-                name = name,
-                brand = dto.brands?.takeIf { it.isNotBlank() },
-                kcalPer100g = nutriments.kcalPer100g ?: 0.0,
-                proteinPer100g = nutriments.proteinPer100g ?: 0.0,
-                carbsPer100g = nutriments.carbsPer100g ?: 0.0,
-                fatPer100g = nutriments.fatPer100g ?: 0.0,
-                sugarPer100g = nutriments.sugarPer100g ?: 0.0,
-                fiberPer100g = nutriments.fiberPer100g ?: 0.0,
-                saltPer100g = nutriments.saltPer100g ?: 0.0,
-            )
-        }
-    }
 }
