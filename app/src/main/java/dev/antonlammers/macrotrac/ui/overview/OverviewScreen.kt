@@ -232,14 +232,7 @@ fun OverviewScreen(
                                 }
                             },
                         ) {
-                            FoodEntryRow(
-                                entry = entry,
-                                onEditClick = {
-                                    amountInput = entry.amountGrams.toInt().toString()
-                                    selectedCategory = entry.mealCategory
-                                    showEditDialog = true
-                                },
-                            )
+                            FoodEntryRow(entry = entry)
                         }
                         HorizontalDivider()
                     }
@@ -580,32 +573,25 @@ private fun MealCategory.displayName() = when (this) {
 }
 
 @Composable
-private fun FoodEntryRow(entry: FoodEntry, onEditClick: () -> Unit) {
-    Row(
+private fun FoodEntryRow(entry: FoodEntry) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                buildString {
-                    append(entry.foodName)
-                    entry.brand?.let { append(" ($it)") }
-                    append(" · ${entry.amountGrams.toInt()} g")
-                },
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                "${entry.kcal.toInt()} kcal · ${entry.proteinG.toInt()}g P · ${entry.carbsG.toInt()}g K · ${entry.fatG.toInt()}g F",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        IconButton(onClick = onEditClick) {
-            Icon(Icons.Default.Edit, contentDescription = "Bearbeiten")
-        }
+        Text(
+            buildString {
+                append(entry.foodName)
+                entry.brand?.let { append(" ($it)") }
+                append(" · ${entry.amountGrams.toInt()} g")
+            },
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            "${entry.kcal.toInt()} kcal · ${entry.proteinG.toInt()}g P · ${entry.carbsG.toInt()}g K · ${entry.fatG.toInt()}g F",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
