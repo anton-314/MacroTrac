@@ -20,6 +20,11 @@ class CustomFoodRepositoryImpl @Inject constructor(
         return food.copy(id = id.toString())
     }
 
+    override suspend fun update(food: Food) {
+        val id = food.id.toLongOrNull() ?: return
+        dao.update(food.toEntity().copy(id = id))
+    }
+
     override suspend fun delete(id: Long) = dao.delete(id)
 
     private fun CustomFoodEntity.toDomain() = Food(

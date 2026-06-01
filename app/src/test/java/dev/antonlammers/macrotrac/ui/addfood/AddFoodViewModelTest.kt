@@ -264,6 +264,117 @@ class AddFoodViewModelTest {
         }
     }
 
+    // --- updateCustomFood ---
+
+    @Test
+    fun `updateCustomFood updates food in repository`() = runTest {
+        viewModel = viewModel()
+        viewModel.customFoods.test {
+            awaitItem() // initial empty
+            val saved = customRepo.save(haferflocken())
+            awaitItem() // [Haferflocken]
+            viewModel.updateCustomFood(saved.copy(name = "Bio-Haferflocken"))
+            val updated = awaitItem()
+            assertEquals("Bio-Haferflocken", updated.first().name)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // --- deferred delete custom food ---
+
+    @Test
+    fun `deletePendingCustomFood hides food immediately`() = runTest {
+        viewModel = viewModel()
+        viewModel.customFoods.test {
+            awaitItem() // initial empty
+            val saved = customRepo.save(haferflocken())
+            awaitItem() // [Haferflocken]
+            viewModel.deletePendingCustomFood(saved)
+            assertTrue(awaitItem().isEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `undoDeleteCustomFood restores food`() = runTest {
+        viewModel = viewModel()
+        viewModel.customFoods.test {
+            awaitItem() // initial empty
+            val saved = customRepo.save(haferflocken())
+            awaitItem() // [Haferflocken]
+            viewModel.deletePendingCustomFood(saved)
+            awaitItem() // hidden
+            viewModel.undoDeleteCustomFood(saved)
+            assertEquals(1, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `confirmDeleteCustomFood removes food permanently`() = runTest {
+        viewModel = viewModel()
+        viewModel.customFoods.test {
+            awaitItem() // initial empty
+            val saved = customRepo.save(haferflocken())
+            awaitItem() // [Haferflocken]
+            viewModel.deletePendingCustomFood(saved)
+            awaitItem() // hidden
+            viewModel.confirmDeleteCustomFood(saved)
+            expectNoEvents()
+            assertTrue(viewModel.customFoods.value.isEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // --- deferred delete history entry ---
+
+    @Test
+    fun `deletePendingEntry hides entry immediately`() = runTest {
+        viewModel = viewModel()
+        viewModel.recentEntries.test {
+            awaitItem() // initial empty
+            entryRepo.add(entry("Banane", 100.0))
+            val withEntry = awaitItem()
+            assertEquals(1, withEntry.size)
+            viewModel.deletePendingEntry(withEntry.first())
+            assertTrue(awaitItem().isEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `undoDeleteEntry restores entry`() = runTest {
+        viewModel = viewModel()
+        viewModel.recentEntries.test {
+            awaitItem() // initial empty
+            entryRepo.add(entry("Banane", 100.0))
+            val withEntry = awaitItem()
+            val e = withEntry.first()
+            viewModel.deletePendingEntry(e)
+            awaitItem() // hidden
+            viewModel.undoDeleteEntry(e)
+            assertEquals(1, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `confirmDeleteEntry removes entry permanently`() = runTest {
+        viewModel = viewModel()
+        viewModel.recentEntries.test {
+            awaitItem() // initial empty
+            entryRepo.add(entry("Banane", 100.0))
+            val withEntry = awaitItem()
+            val e = withEntry.first()
+            viewModel.deletePendingEntry(e)
+            awaitItem() // hidden
+            viewModel.confirmDeleteEntry(e)
+            expectNoEvents()
+            assertTrue(viewModel.recentEntries.value.isEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     // --- helpers ---
 
     private fun viewModel() = AddFoodViewModel(

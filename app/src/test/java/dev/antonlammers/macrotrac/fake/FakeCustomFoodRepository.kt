@@ -21,6 +21,10 @@ class FakeCustomFoodRepository : CustomFoodRepository {
         return saved
     }
 
+    override suspend fun update(food: Food) {
+        _foods.update { list -> list.map { if (it.id == food.id) food else it } }
+    }
+
     override suspend fun delete(id: Long) {
         _foods.update { it.filterNot { f -> f.id == id.toString() } }
     }

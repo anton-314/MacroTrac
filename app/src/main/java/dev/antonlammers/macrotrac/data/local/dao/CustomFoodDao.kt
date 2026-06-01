@@ -3,6 +3,7 @@ package dev.antonlammers.macrotrac.data.local.dao
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import dev.antonlammers.macrotrac.data.local.entity.CustomFoodEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -13,6 +14,9 @@ interface CustomFoodDao {
 
     @Insert
     suspend fun insert(food: CustomFoodEntity): Long
+
+    @Update
+    suspend fun update(food: CustomFoodEntity)
 
     @Query("DELETE FROM custom_foods WHERE id = :id")
     suspend fun delete(id: Long)

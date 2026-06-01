@@ -1,5 +1,6 @@
 package dev.antonlammers.macrotrac.ui.addfood
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -30,17 +32,26 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -53,6 +64,7 @@ import dev.antonlammers.macrotrac.ui.navigation.Screen
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,8 +76,11 @@ fun AddFoodScreen(
     val recentEntries by viewModel.recentEntries.collectAsStateWithLifecycle()
     val customFoods by viewModel.customFoods.collectAsStateWithLifecycle()
     val localSearchResults by viewModel.localSearchResults.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     var showCreateDialog by remember { mutableStateOf(false) }
+    var foodToEdit by remember { mutableStateOf<Food?>(null) }
 
     LaunchedEffect(state.entryAdded) {
         if (state.entryAdded) {
@@ -85,11 +100,22 @@ fun AddFoodScreen(
     }
 
     if (showCreateDialog) {
-        CreateCustomFoodDialog(
+        CustomFoodDialog(
             onDismiss = { showCreateDialog = false },
             onSave = { food ->
                 viewModel.saveCustomFood(food)
                 showCreateDialog = false
+            },
+        )
+    }
+
+    foodToEdit?.let { food ->
+        CustomFoodDialog(
+            initial = food,
+            onDismiss = { foodToEdit = null },
+            onSave = { updated ->
+                viewModel.updateCustomFood(updated.copy(id = food.id))
+                foodToEdit = null
             },
         )
     }
@@ -129,6 +155,7 @@ fun AddFoodScreen(
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -157,10 +184,24 @@ fun AddFoodScreen(
                     if (customFoods.isNotEmpty()) {
                         item { SectionLabel("Meine Lebensmittel") }
                         items(customFoods, key = { "custom_${it.id}" }) { food ->
-                            CustomFoodRow(
+                            SwipeableCustomFoodRow(
                                 food = food,
                                 onClick = { viewModel.selectFood(food) },
-                                onDelete = { viewModel.deleteCustomFood(food) },
+                                onEdit = { foodToEdit = food },
+                                onDelete = {
+                                    viewModel.deletePendingCustomFood(food)
+                                    coroutineScope.launch {
+                                        val result = snackbar.showSnackbar(
+                                            message = "Lebensmittel gelöscht",
+                                            actionLabel = "Rückgängig",
+                                            duration = SnackbarDuration.Short,
+                                        )
+                                        when (result) {
+                                            SnackbarResult.ActionPerformed -> viewModel.undoDeleteCustomFood(food)
+                                            SnackbarResult.Dismissed -> viewModel.confirmDeleteCustomFood(food)
+                                        }
+                                    }
+                                },
                             )
                             HorizontalDivider()
                         }
@@ -181,7 +222,24 @@ fun AddFoodScreen(
                                 )
                             }
                             items(entries, key = { "history_${it.id}" }) { entry ->
-                                RecentFoodRow(entry = entry, onClick = { viewModel.selectRecentFood(entry) })
+                                SwipeableHistoryRow(
+                                    entry = entry,
+                                    onClick = { viewModel.selectRecentFood(entry) },
+                                    onDelete = {
+                                        viewModel.deletePendingEntry(entry)
+                                        coroutineScope.launch {
+                                            val result = snackbar.showSnackbar(
+                                                message = "Eintrag gelöscht",
+                                                actionLabel = "Rückgängig",
+                                                duration = SnackbarDuration.Short,
+                                            )
+                                            when (result) {
+                                                SnackbarResult.ActionPerformed -> viewModel.undoDeleteEntry(entry)
+                                                SnackbarResult.Dismissed -> viewModel.confirmDeleteEntry(entry)
+                                            }
+                                        }
+                                    },
+                                )
                                 HorizontalDivider()
                             }
                         }
@@ -240,14 +298,42 @@ fun AddFoodScreen(
                             },
                         ) { result ->
                             when (result) {
-                                is LocalSearchResult.CustomFoodResult -> CustomFoodRow(
+                                is LocalSearchResult.CustomFoodResult -> SwipeableCustomFoodRow(
                                     food = result.food,
                                     onClick = { viewModel.selectFood(result.food) },
-                                    onDelete = { viewModel.deleteCustomFood(result.food) },
+                                    onEdit = { foodToEdit = result.food },
+                                    onDelete = {
+                                        viewModel.deletePendingCustomFood(result.food)
+                                        coroutineScope.launch {
+                                            val r = snackbar.showSnackbar(
+                                                message = "Lebensmittel gelöscht",
+                                                actionLabel = "Rückgängig",
+                                                duration = SnackbarDuration.Short,
+                                            )
+                                            when (r) {
+                                                SnackbarResult.ActionPerformed -> viewModel.undoDeleteCustomFood(result.food)
+                                                SnackbarResult.Dismissed -> viewModel.confirmDeleteCustomFood(result.food)
+                                            }
+                                        }
+                                    },
                                 )
-                                is LocalSearchResult.HistoryResult -> RecentFoodRow(
+                                is LocalSearchResult.HistoryResult -> SwipeableHistoryRow(
                                     entry = result.entry,
                                     onClick = { viewModel.selectRecentFood(result.entry) },
+                                    onDelete = {
+                                        viewModel.deletePendingEntry(result.entry)
+                                        coroutineScope.launch {
+                                            val r = snackbar.showSnackbar(
+                                                message = "Eintrag gelöscht",
+                                                actionLabel = "Rückgängig",
+                                                duration = SnackbarDuration.Short,
+                                            )
+                                            when (r) {
+                                                SnackbarResult.ActionPerformed -> viewModel.undoDeleteEntry(result.entry)
+                                                SnackbarResult.Dismissed -> viewModel.confirmDeleteEntry(result.entry)
+                                            }
+                                        }
+                                    },
                                 )
                             }
                             HorizontalDivider()
@@ -256,6 +342,97 @@ fun AddFoodScreen(
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableCustomFoodRow(
+    food: Food,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.EndToStart -> { onDelete(); true }
+                SwipeToDismissBoxValue.StartToEnd -> { onEdit(); false }
+                else -> false
+            }
+        }
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = true,
+        backgroundContent = {
+            val bgColor = when (dismissState.targetValue) {
+                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
+                SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.primaryContainer
+                else -> Color.Transparent
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(bgColor)
+                    .padding(horizontal = 16.dp),
+                contentAlignment = when (dismissState.targetValue) {
+                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                    else -> Alignment.CenterEnd
+                },
+            ) {
+                when (dismissState.targetValue) {
+                    SwipeToDismissBoxValue.EndToStart -> Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Löschen",
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    SwipeToDismissBoxValue.StartToEnd -> Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Bearbeiten",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                    else -> {}
+                }
+            }
+        },
+    ) {
+        CustomFoodRow(food = food, onClick = onClick)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableHistoryRow(
+    entry: FoodEntry,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) { onDelete(); true } else false
+        }
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Löschen",
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        },
+    ) {
+        RecentFoodRow(entry = entry, onClick = onClick)
     }
 }
 
@@ -270,35 +447,26 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun CustomFoodRow(food: Food, onClick: () -> Unit, onDelete: () -> Unit) {
-    Row(
+private fun CustomFoodRow(food: Food, onClick: () -> Unit) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick)
-            .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                buildString {
-                    append(food.name)
-                    food.brand?.let { append(" ($it)") }
-                },
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                "${food.kcalPer100g.toInt()} kcal · ${food.proteinPer100g.toInt()}g P · ${food.carbsPer100g.toInt()}g K · ${food.fatPer100g.toInt()}g F (pro 100 g)",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        IconButton(onClick = onDelete) {
-            Icon(
-                Icons.Default.Delete,
-                contentDescription = "Löschen",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        Text(
+            buildString {
+                append(food.name)
+                food.brand?.let { append(" ($it)") }
+            },
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            "${food.kcalPer100g.toInt()} kcal · ${food.proteinPer100g.toInt()}g P · ${food.carbsPer100g.toInt()}g K · ${food.fatPer100g.toInt()}g F (pro 100 g)",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -307,6 +475,7 @@ private fun RecentFoodRow(entry: FoodEntry, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
@@ -331,18 +500,21 @@ private fun RecentFoodRow(entry: FoodEntry, onClick: () -> Unit) {
     }
 }
 
-
 @Composable
-private fun CreateCustomFoodDialog(onDismiss: () -> Unit, onSave: (Food) -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var brand by remember { mutableStateOf("") }
-    var kcal by remember { mutableStateOf("") }
-    var protein by remember { mutableStateOf("") }
-    var carbs by remember { mutableStateOf("") }
-    var fat by remember { mutableStateOf("") }
-    var sugar by remember { mutableStateOf("") }
-    var fiber by remember { mutableStateOf("") }
-    var salt by remember { mutableStateOf("") }
+private fun CustomFoodDialog(
+    initial: Food? = null,
+    onDismiss: () -> Unit,
+    onSave: (Food) -> Unit,
+) {
+    var name by remember { mutableStateOf(initial?.name ?: "") }
+    var brand by remember { mutableStateOf(initial?.brand ?: "") }
+    var kcal by remember { mutableStateOf(initial?.kcalPer100g?.toString() ?: "") }
+    var protein by remember { mutableStateOf(initial?.proteinPer100g?.toString() ?: "") }
+    var carbs by remember { mutableStateOf(initial?.carbsPer100g?.toString() ?: "") }
+    var fat by remember { mutableStateOf(initial?.fatPer100g?.toString() ?: "") }
+    var sugar by remember { mutableStateOf(initial?.sugarPer100g?.takeIf { it > 0 }?.toString() ?: "") }
+    var fiber by remember { mutableStateOf(initial?.fiberPer100g?.takeIf { it > 0 }?.toString() ?: "") }
+    var salt by remember { mutableStateOf(initial?.saltPer100g?.takeIf { it > 0 }?.toString() ?: "") }
 
     val isValid = name.isNotBlank()
         && kcal.toDoubleOrNull() != null
@@ -352,7 +524,7 @@ private fun CreateCustomFoodDialog(onDismiss: () -> Unit, onSave: (Food) -> Unit
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Neues Lebensmittel") },
+        title = { Text(if (initial == null) "Neues Lebensmittel" else "Lebensmittel bearbeiten") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -375,7 +547,7 @@ private fun CreateCustomFoodDialog(onDismiss: () -> Unit, onSave: (Food) -> Unit
                 onClick = {
                     onSave(
                         Food(
-                            id = "",
+                            id = initial?.id ?: "",
                             name = name.trim(),
                             brand = brand.trim().takeIf { it.isNotBlank() },
                             kcalPer100g = kcal.toDouble(),

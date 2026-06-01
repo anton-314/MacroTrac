@@ -36,23 +36,38 @@ class AddFoodViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AddFoodUiState())
     val uiState: StateFlow<AddFoodUiState> = _uiState.asStateFlow()
 
-    val recentEntries: StateFlow<List<FoodEntry>> = foodEntryRepository.recentEntries()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private val _pendingDeleteCustomFood = MutableStateFlow<Food?>(null)
+    private val _pendingDeleteEntry = MutableStateFlow<FoodEntry?>(null)
 
-    val customFoods: StateFlow<List<Food>> = customFoodRepository.allFoods()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val recentEntries: StateFlow<List<FoodEntry>> = combine(
+        foodEntryRepository.recentEntries(),
+        _pendingDeleteEntry,
+    ) { entries, pending ->
+        if (pending != null) entries.filter { it.id != pending.id } else entries
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val customFoods: StateFlow<List<Food>> = combine(
+        customFoodRepository.allFoods(),
+        _pendingDeleteCustomFood,
+    ) { foods, pending ->
+        if (pending != null) foods.filter { it.id != pending.id } else foods
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val localSearchResults: StateFlow<List<LocalSearchResult>> = combine(
         _uiState.map { it.query },
         customFoodRepository.allFoods(),
         foodEntryRepository.recentEntries(),
-    ) { query, customs, entries ->
+        _pendingDeleteCustomFood,
+        _pendingDeleteEntry,
+    ) { query, customs, entries, pendingFood, pendingEntry ->
         if (query.isBlank()) emptyList()
         else {
-            val matchedCustoms = customs
+            val filteredCustoms = if (pendingFood != null) customs.filter { it.id != pendingFood.id } else customs
+            val filteredEntries = if (pendingEntry != null) entries.filter { it.id != pendingEntry.id } else entries
+            val matchedCustoms = filteredCustoms
                 .filter { it.name.contains(query, ignoreCase = true) }
                 .map { LocalSearchResult.CustomFoodResult(it) }
-            val matchedHistory = entries
+            val matchedHistory = filteredEntries
                 .filter { it.foodName.contains(query, ignoreCase = true) }
                 .distinctBy { it.foodName.lowercase() }
                 .map { LocalSearchResult.HistoryResult(it) }
@@ -90,10 +105,38 @@ class AddFoodViewModel @Inject constructor(
         }
     }
 
-    fun deleteCustomFood(food: Food) {
-        food.id.toLongOrNull()?.let { id ->
-            viewModelScope.launch { customFoodRepository.delete(id) }
-        }
+    fun updateCustomFood(food: Food) {
+        viewModelScope.launch { customFoodRepository.update(food) }
+    }
+
+    // --- custom food deferred delete ---
+
+    fun deletePendingCustomFood(food: Food) {
+        _pendingDeleteCustomFood.value = food
+    }
+
+    fun confirmDeleteCustomFood(food: Food) {
+        if (_pendingDeleteCustomFood.value?.id == food.id) _pendingDeleteCustomFood.value = null
+        food.id.toLongOrNull()?.let { id -> viewModelScope.launch { customFoodRepository.delete(id) } }
+    }
+
+    fun undoDeleteCustomFood(food: Food) {
+        if (_pendingDeleteCustomFood.value?.id == food.id) _pendingDeleteCustomFood.value = null
+    }
+
+    // --- history entry deferred delete ---
+
+    fun deletePendingEntry(entry: FoodEntry) {
+        _pendingDeleteEntry.value = entry
+    }
+
+    fun confirmDeleteEntry(entry: FoodEntry) {
+        if (_pendingDeleteEntry.value?.id == entry.id) _pendingDeleteEntry.value = null
+        viewModelScope.launch { foodEntryRepository.delete(entry.id) }
+    }
+
+    fun undoDeleteEntry(entry: FoodEntry) {
+        if (_pendingDeleteEntry.value?.id == entry.id) _pendingDeleteEntry.value = null
     }
 
     fun dismissSelection() = _uiState.update { it.copy(selectedFood = null) }
