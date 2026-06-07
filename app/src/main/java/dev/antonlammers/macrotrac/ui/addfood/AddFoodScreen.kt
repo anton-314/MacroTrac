@@ -61,6 +61,7 @@ import dev.antonlammers.macrotrac.domain.model.Food
 import dev.antonlammers.macrotrac.domain.model.FoodEntry
 import dev.antonlammers.macrotrac.domain.model.MealCategory
 import dev.antonlammers.macrotrac.ui.navigation.Screen
+import dev.antonlammers.macrotrac.util.normalizeDecimal
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -517,10 +518,10 @@ private fun CustomFoodDialog(
     var salt by remember { mutableStateOf(initial?.saltPer100g?.takeIf { it > 0 }?.toString() ?: "") }
 
     val isValid = name.isNotBlank()
-        && kcal.toDoubleOrNull() != null
-        && protein.toDoubleOrNull() != null
-        && carbs.toDoubleOrNull() != null
-        && fat.toDoubleOrNull() != null
+        && kcal.normalizeDecimal().toDoubleOrNull() != null
+        && protein.normalizeDecimal().toDoubleOrNull() != null
+        && carbs.normalizeDecimal().toDoubleOrNull() != null
+        && fat.normalizeDecimal().toDoubleOrNull() != null
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -550,13 +551,13 @@ private fun CustomFoodDialog(
                             id = initial?.id ?: "",
                             name = name.trim(),
                             brand = brand.trim().takeIf { it.isNotBlank() },
-                            kcalPer100g = kcal.toDouble(),
-                            proteinPer100g = protein.toDouble(),
-                            carbsPer100g = carbs.toDouble(),
-                            fatPer100g = fat.toDouble(),
-                            sugarPer100g = sugar.toDoubleOrNull() ?: 0.0,
-                            fiberPer100g = fiber.toDoubleOrNull() ?: 0.0,
-                            saltPer100g = salt.toDoubleOrNull() ?: 0.0,
+                            kcalPer100g = kcal.normalizeDecimal().toDouble(),
+                            proteinPer100g = protein.normalizeDecimal().toDouble(),
+                            carbsPer100g = carbs.normalizeDecimal().toDouble(),
+                            fatPer100g = fat.normalizeDecimal().toDouble(),
+                            sugarPer100g = sugar.normalizeDecimal().toDoubleOrNull() ?: 0.0,
+                            fiberPer100g = fiber.normalizeDecimal().toDoubleOrNull() ?: 0.0,
+                            saltPer100g = salt.normalizeDecimal().toDoubleOrNull() ?: 0.0,
                         )
                     )
                 },
@@ -589,7 +590,7 @@ private fun AmountDialog(
                     value = amount,
                     onValueChange = onAmountChange,
                     label = { Text("Menge (g)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )

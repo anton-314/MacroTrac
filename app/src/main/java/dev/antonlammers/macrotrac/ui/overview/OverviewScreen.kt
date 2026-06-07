@@ -76,6 +76,7 @@ import dev.antonlammers.macrotrac.domain.model.FoodEntry
 import dev.antonlammers.macrotrac.domain.model.MealCategory
 import dev.antonlammers.macrotrac.domain.model.WeightEntry
 import dev.antonlammers.macrotrac.ui.navigation.Screen
+import dev.antonlammers.macrotrac.util.normalizeDecimal
 import dev.antonlammers.macrotrac.ui.theme.CalorieColor
 import dev.antonlammers.macrotrac.ui.theme.CarbsColor
 import dev.antonlammers.macrotrac.ui.theme.FatColor
@@ -271,7 +272,7 @@ private fun EditFoodDialog(
     onDismiss: () -> Unit,
     onConfirm: (FoodEntry) -> Unit,
 ) {
-    val newAmount = amountInput.toDoubleOrNull() ?: 0.0
+    val newAmount = amountInput.normalizeDecimal().toDoubleOrNull() ?: 0.0
     val factor = if (entry.amountGrams > 0 && newAmount > 0) newAmount / entry.amountGrams else 1.0
 
     AlertDialog(
@@ -333,9 +334,9 @@ private fun EditFoodDialog(
         },
         confirmButton = {
             TextButton(
-                enabled = amountInput.toDoubleOrNull()?.let { it > 0 } == true,
+                enabled = amountInput.normalizeDecimal().toDoubleOrNull()?.let { it > 0 } == true,
                 onClick = {
-                    val newAmt = amountInput.toDoubleOrNull() ?: return@TextButton
+                    val newAmt = amountInput.normalizeDecimal().toDoubleOrNull() ?: return@TextButton
                     if (newAmt > 0) {
                         val f = newAmt / entry.amountGrams
                         onConfirm(
@@ -536,7 +537,7 @@ private fun WeightCard(weight: WeightEntry?, onSave: (Double) -> Unit) {
             },
             confirmButton = {
                 TextButton(onClick = {
-                    input.toDoubleOrNull()?.let { onSave(it) }
+                    input.normalizeDecimal().toDoubleOrNull()?.let { onSave(it) }
                     showDialog = false
                 }) { Text("Speichern") }
             },

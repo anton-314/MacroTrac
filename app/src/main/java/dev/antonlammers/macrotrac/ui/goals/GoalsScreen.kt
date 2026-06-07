@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import dev.antonlammers.macrotrac.domain.MacroCalculator
 import dev.antonlammers.macrotrac.domain.model.DailyGoal
+import dev.antonlammers.macrotrac.util.normalizeDecimal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,11 +56,11 @@ fun GoalsScreen(
     var carbs by remember(goal) { mutableStateOf(goal.carbsG.toInt().toString()) }
     var fat by remember(goal) { mutableStateOf(goal.fatG.toInt().toString()) }
 
-    val bodyWeightKg = bodyWeight.toDoubleOrNull()
-    val kcalValue = kcal.toDoubleOrNull()
-    val proteinValue = protein.toDoubleOrNull()
-    val carbsValue = carbs.toDoubleOrNull()
-    val fatValue = fat.toDoubleOrNull()
+    val bodyWeightKg = bodyWeight.normalizeDecimal().toDoubleOrNull()
+    val kcalValue = kcal.normalizeDecimal().toDoubleOrNull()
+    val proteinValue = protein.normalizeDecimal().toDoubleOrNull()
+    val carbsValue = carbs.normalizeDecimal().toDoubleOrNull()
+    val fatValue = fat.normalizeDecimal().toDoubleOrNull()
 
     val calculatedKcal = if (proteinValue != null && carbsValue != null && fatValue != null)
         MacroCalculator.kcalFromMacros(proteinValue, carbsValue, fatValue) else null
@@ -207,10 +208,10 @@ fun GoalsScreen(
                 onClick = {
                     viewModel.save(
                         DailyGoal(
-                            kcal = kcal.toDoubleOrNull() ?: goal.kcal,
-                            proteinG = protein.toDoubleOrNull() ?: goal.proteinG,
-                            carbsG = carbs.toDoubleOrNull() ?: goal.carbsG,
-                            fatG = fat.toDoubleOrNull() ?: goal.fatG,
+                            kcal = kcal.normalizeDecimal().toDoubleOrNull() ?: goal.kcal,
+                            proteinG = protein.normalizeDecimal().toDoubleOrNull() ?: goal.proteinG,
+                            carbsG = carbs.normalizeDecimal().toDoubleOrNull() ?: goal.carbsG,
+                            fatG = fat.normalizeDecimal().toDoubleOrNull() ?: goal.fatG,
                         )
                     )
                     navController.popBackStack()

@@ -10,6 +10,7 @@ import dev.antonlammers.macrotrac.domain.model.MealCategory
 import dev.antonlammers.macrotrac.domain.repository.CustomFoodRepository
 import dev.antonlammers.macrotrac.domain.repository.FoodEntryRepository
 import dev.antonlammers.macrotrac.domain.repository.FoodSearchRepository
+import dev.antonlammers.macrotrac.util.normalizeDecimal
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -148,7 +149,7 @@ class AddFoodViewModel @Inject constructor(
     fun confirmAdd() {
         val state = _uiState.value
         val food = state.selectedFood ?: return
-        val amount = state.amountGrams.toDoubleOrNull()?.takeIf { it > 0 } ?: return
+        val amount = state.amountGrams.normalizeDecimal().toDoubleOrNull()?.takeIf { it > 0 } ?: return
         val factor = amount / 100.0
         viewModelScope.launch {
             foodEntryRepository.add(

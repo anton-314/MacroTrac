@@ -164,6 +164,23 @@ class AddFoodViewModelTest {
     }
 
     @Test
+    fun `confirmAdd with comma decimal saves entry`() = runTest {
+        viewModel = viewModel()
+        viewModel.selectFood(apple()) // 52 kcal / 100g
+        viewModel.onAmountChange("1,5")
+        viewModel.uiState.test {
+            awaitItem()
+            viewModel.confirmAdd()
+            val state = awaitItem()
+            assertTrue(state.entryAdded)
+        }
+        entryRepo.entriesForDate(LocalDate.now()).test {
+            val entries = awaitItem()
+            assertEquals(1.5, entries.first().amountGrams, 0.001)
+        }
+    }
+
+    @Test
     fun `confirmAdd with invalid amount does nothing`() = runTest {
         viewModel = viewModel()
         viewModel.selectFood(apple())
