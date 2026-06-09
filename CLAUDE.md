@@ -2,6 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development workflow
+
+Every feature or change follows this workflow — keep it in mind from the first line of code:
+
+1. **Plan deliberately.** Design so the software stays *extensible* (new cases slot in without rewrites) and *well testable* (logic separable from Android/UI, behaviour reachable by a test). Prefer a reusable building block over a one-off when the same need will recur.
+2. **Implement** the plan.
+3. **Remove dead code.** Delete now-unused sections, wrappers, imports, and helpers so the codebase stays a clear picture of what's actually in use — no leftovers from the previous shape of the code.
+4. **Validate** the change against the requirement (and edge cases) by reading it back.
+5. **Write tests** covering the new behaviour (ViewModel logic → JVM unit tests under `app/src/test/`; UI behaviour → Compose tests under `app/src/androidTest/`).
+6. **Compile and test from the command line** using the commands below — `assembleDebug` + `testDebugUnitTest` (and `connectedDebugAndroidTest` for instrumented tests when a device/emulator is attached). Don't consider a step done until it builds and tests pass.
+7. **Update the docs** — keep this `CLAUDE.md` in sync with new architecture, design decisions, and conventions.
+8. **Commit** with a clear, conventional message.
+
 ## Build & Test Commands
 
 ```bash
@@ -39,6 +52,7 @@ app/src/main/java/dev/antonlammers/macrotrac/
 ├── di/                      # Hilt modules: DatabaseModule, NetworkModule, RepositoryModule
 ├── ui/
 │   ├── theme/               # Color.kt (incl. pastel macro colors), Theme.kt
+│   ├── components/          # Reusable UI building blocks (e.g. NumericTextField)
 │   ├── navigation/          # AppNavigation with sealed Screen routes
 │   ├── overview/            # Daily summary (OverviewScreen + OverviewViewModel)
 │   ├── addfood/             # Food search + barcode scanner (AddFoodScreen, AddFoodViewModel,
@@ -55,6 +69,8 @@ Unit tests live in `app/src/test/`. Fakes (no mocking library) are in `.../fake/
 - `FakeFoodEntryRepository`, `FakeGoalRepository`, `FakeFoodSearchRepository`, `FakeWeightRepository`
 
 Tests use `kotlinx-coroutines-test` + `turbine`. All ViewModels have full test coverage.
+
+Compose UI behaviour is tested under `app/src/androidTest/` with `createComposeRule` (e.g. `ui/components/NumericTextFieldTest`). These are instrumented tests — run them with `connectedDebugAndroidTest` against an emulator/device, not `testDebugUnitTest`.
 
 ### Backup & data portability
 
@@ -90,6 +106,7 @@ All CSV parsing is name-based (column order is irrelevant on import). This gives
 
 - **Domain layer is Android-free.** ViewModels depend only on `domain/repository` interfaces. Swapping the data source touches only `data/` and `di/`.
 - **Theme isolation.** Replacing `ui/theme/Color.kt` and `Theme.kt` is sufficient to restyle the entire app. Pastel macro colors (`CalorieColor`, `ProteinColor`, `CarbsColor`, `FatColor`) are defined in `Color.kt`.
+- **Numeric input fields — `ui/components/NumericTextField`.** UI design language: *every* field that holds a number uses `NumericTextField`, never a bare `OutlinedTextField`. When such a field gains focus it **selects its whole content**, so a pre-filled value (e.g. the last used amount, the current goal) can be overwritten by simply typing — without deleting the old value first. The composable keeps a `String`-based `value`/`onValueChange` API (callers own the raw text and parse it themselves, accepting comma or period as decimal separators via `normalizeDecimal`); the internal `TextFieldValue` that carries the selection never leaks out. `decimal = true` (default) gives a decimal keyboard, `decimal = false` a whole-number keyboard. Behaviour is covered by `NumericTextFieldTest` (Compose UI test in `app/src/androidTest/`). When adding a new numeric field, reach for `NumericTextField` — do not reintroduce raw text fields for numbers.
 - **Local dates.** `FoodEntry.date` and `WeightEntry.date` are `LocalDate` in the domain; stored as ISO-8601 `String` in Room.
 - **DailyGoal** is a singleton row (`id = 1`, `OnConflictStrategy.REPLACE`) — no per-day goal history.
 - **WeightEntry** is one per day, enforced via a `UNIQUE` index on the `date` column + `OnConflictStrategy.REPLACE` on insert.
