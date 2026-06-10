@@ -198,12 +198,12 @@ fun AddFoodScreen(
                     Tab(
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
-                        text = { Text("Meine Lebensmittel") },
+                        text = { Text("Verlauf") },
                     )
                     Tab(
                         selected = selectedTab == 1,
                         onClick = { selectedTab = 1 },
-                        text = { Text("Verlauf") },
+                        text = { Text("Meine Lebensmittel") },
                     )
                 }
             }
@@ -211,7 +211,8 @@ fun AddFoodScreen(
             LazyColumn {
                 // Empty state: active tab content
                 if (state.query.isEmpty() && !state.isLoading) {
-                    if (selectedTab == 0) {
+                    // Tab 0 = Verlauf (default), Tab 1 = Meine Lebensmittel.
+                    if (selectedTab == 1) {
                         if (customFoods.isEmpty()) {
                             item {
                                 Box(
