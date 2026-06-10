@@ -27,11 +27,14 @@ JAVA_HOME=/opt/android-studio/jbr ./gradlew assembleDebug
 JAVA_HOME=/opt/android-studio/jbr ./gradlew installDebug
 /home/anon/Android/Sdk/platform-tools/adb shell am start -n dev.antonlammers.macrotrac/.MainActivity
 
-# Run all unit tests (debug only — release build has a pre-existing Hilt issue from the rename)
+# Run all unit tests
 JAVA_HOME=/opt/android-studio/jbr ./gradlew testDebugUnitTest
 
 # Run a specific test class
 JAVA_HOME=/opt/android-studio/jbr ./gradlew :app:testDebugUnitTest --tests "dev.antonlammers.macrotrac.ui.overview.OverviewViewModelTest"
+
+# Release build + release unit tests (both pass — keep them working)
+JAVA_HOME=/opt/android-studio/jbr ./gradlew assembleRelease testReleaseUnitTest
 
 # Lint
 JAVA_HOME=/opt/android-studio/jbr ./gradlew lint
