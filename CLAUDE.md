@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Every feature or change follows this workflow — keep it in mind from the first line of code:
 
+**When in doubt, ask.** Any uncertainty about *what* to build — the requirement, the desired behaviour, the functional scope — must be resolved by asking the user before implementing. Never guess at intent. *Technical* decisions (architecture, patterns, data structures, naming, test design, refactors), by contrast, are made autonomously to the highest programming standards — do not ask about those, just apply best practice. In short: ask about the functional/feature side, decide the engineering side yourself.
+
 1. **Plan deliberately.** Design so the software stays *extensible* (new cases slot in without rewrites) and *well testable* (logic separable from Android/UI, behaviour reachable by a test). Prefer a reusable building block over a one-off when the same need will recur.
 2. **Implement** the plan.
 3. **Remove dead code.** Delete now-unused sections, wrappers, imports, and helpers so the codebase stays a clear picture of what's actually in use — no leftovers from the previous shape of the code.
