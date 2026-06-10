@@ -70,6 +70,9 @@ dependencies {
     implementation(libs.glance.appwidget)
     implementation(libs.glance.material3)
 
+    // WorkManager (daily meal reminder)
+    implementation(libs.androidx.work.runtime)
+
     // CameraX + ML Kit Barcode
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)

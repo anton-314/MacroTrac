@@ -60,7 +60,9 @@ app/src/main/java/dev/antonlammers/macrotrac/
 │   ├── addfood/             # Food search + barcode scanner (AddFoodScreen, AddFoodViewModel,
 │   │                        #   BarcodeScannerScreen, BarcodeAnalyzer)
 │   ├── goals/               # Goal editor (GoalsScreen + GoalsViewModel)
+│   ├── data/                # Backup export/import + settings (DataScreen, DataViewModel)
 │   └── stats/               # Stats screen: calorie + weight charts (StatsScreen + StatsViewModel)
+├── notification/            # Daily meal reminder: Scheduler, Worker, Notifier (WorkManager)
 ├── MacroTracApp.kt          # @HiltAndroidApp
 └── MainActivity.kt          # @AndroidEntryPoint, hosts AppNavigation inside MacroTracTheme
 ```
@@ -123,4 +125,9 @@ All CSV parsing is name-based (column order is irrelevant on import). This gives
 - **Barcode scanner** (`BarcodeScannerScreen`) uses CameraX + ML Kit. It passes the detected barcode back via `NavBackStackEntry.savedStateHandle["barcode"]` and `AddFoodViewModel.handleBarcode()` resolves it against the API. `BarcodeAnalyzer` uses an `AtomicBoolean` to fire the callback exactly once per scan session.
   - **Torch toggle**: the screen holds a `torchOn` state (default **off**). `CameraPreview` keeps the bound `Camera` reference and applies the state via `cameraControl.enableTorch()` in a `LaunchedEffect(camera, torchEnabled)`. The toggle `IconButton` (FlashOn/FlashOff) is rendered top-start, but only when `cameraInfo.hasFlashUnit()` reported a flash unit on bind.
 - **`@ExperimentalGetImage`** propagates from `BarcodeAnalyzer` → `BarcodeScannerScreen` → `AppNavigation` → `MainActivity`. This is expected and not a warning to suppress.
+- **Daily meal reminder** (`notification/`): if no food entry exists for today by **17:00**, an unobtrusive notification is posted (channel importance `LOW` → no sound/heads-up). Weight entries do **not** count — only meals.
+  - `MealReminderScheduler` enqueues a **self-rescheduling one-time** `WorkManager` job (`ExistingWorkPolicy.REPLACE`) whose initial delay targets the next 17:00; `MealReminderWorker` re-enqueues the next day's run in a `finally` block. `MacroTracApp.onCreate` also calls `schedule()` so the job stays aligned to the next 17:00. The next-17:00 math is the pure, unit-tested `initialDelayMillis(now)`.
+  - The worker gets its repositories via a Hilt `@EntryPoint` (`EntryPointAccessors.fromApplication`) — deliberately **not** `@HiltWorker`, so no custom `WorkerFactory`/`Configuration.Provider` is needed and the default WorkManager initializer stays in use.
+  - `MealReminderNotifier` builds the notification and taps open `MainActivity`. `POST_NOTIFICATIONS` (Android 13+) is declared in the manifest and requested in `MainActivity.onCreate`.
+  - **Enable/disable**: `SettingsRepository` (domain interface, `SettingsRepositoryImpl` backed by `SharedPreferences` "macrotrac_settings") stores `meal_reminder_enabled` (default **true**). The toggle lives on `DataScreen` ("Tägliche Erinnerung"). The worker reads the flag each run and no-ops when disabled (still reschedules), so toggling needs no scheduler coupling.
 - **DB schema**: version 5. Migrations: 1→2 adds sugar/fiber/mealCategory columns; 2→3 adds the `weight_entries` table; 3→4 adds the `custom_foods` table; 4→5 adds `saltG` to `food_entries` and `saltPer100g` to `custom_foods`.

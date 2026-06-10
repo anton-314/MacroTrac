@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.antonlammers.macrotrac.data.backup.BackupExporter
 import dev.antonlammers.macrotrac.data.backup.BackupImporter
+import dev.antonlammers.macrotrac.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,10 +18,22 @@ import javax.inject.Inject
 class DataViewModel @Inject constructor(
     private val exporter: BackupExporter,
     private val importer: BackupImporter,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DataUiState())
     val uiState: StateFlow<DataUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            _uiState.update { it.copy(reminderEnabled = settingsRepository.isReminderEnabled()) }
+        }
+    }
+
+    fun setReminderEnabled(enabled: Boolean) {
+        _uiState.update { it.copy(reminderEnabled = enabled) }
+        viewModelScope.launch { settingsRepository.setReminderEnabled(enabled) }
+    }
 
     fun export(onUri: (Uri) -> Unit) {
         viewModelScope.launch {
@@ -64,4 +77,5 @@ class DataViewModel @Inject constructor(
 data class DataUiState(
     val isLoading: Boolean = false,
     val message: String? = null,
+    val reminderEnabled: Boolean = true,
 )
