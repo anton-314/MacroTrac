@@ -7,6 +7,7 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import dev.antonlammers.macrotrac.domain.model.FoodEntry
 import dev.antonlammers.macrotrac.domain.repository.FoodEntryRepository
 import dev.antonlammers.macrotrac.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.first
@@ -35,11 +36,14 @@ class MealReminderWorker(
     override suspend fun doWork(): Result {
         val deps = EntryPointAccessors.fromApplication(applicationContext, Deps::class.java)
         try {
-            if (deps.settingsRepository().isReminderEnabled()) {
-                val entries = deps.foodEntryRepository().entriesForDate(LocalDate.now()).first()
-                if (entries.isEmpty()) {
-                    MealReminderNotifier.show(applicationContext)
-                }
+            val enabled = deps.settingsRepository().isReminderEnabled()
+            val entries = if (enabled) {
+                deps.foodEntryRepository().entriesForDate(LocalDate.now()).first()
+            } else {
+                emptyList()
+            }
+            if (shouldRemind(enabled, entries)) {
+                MealReminderNotifier.show(applicationContext)
             }
         } finally {
             MealReminderScheduler.schedule(applicationContext)
@@ -47,3 +51,10 @@ class MealReminderWorker(
         return Result.success()
     }
 }
+
+/**
+ * Whether the daily reminder should fire: only when it is [enabled] and no food has been logged
+ * for the day yet. Pure so the decision is unit-testable without WorkManager/Android.
+ */
+fun shouldRemind(enabled: Boolean, todaysEntries: List<FoodEntry>): Boolean =
+    enabled && todaysEntries.isEmpty()

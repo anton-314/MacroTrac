@@ -433,6 +433,51 @@ class AddFoodViewModelTest {
         }
     }
 
+    // --- selectRecentFood (history entry -> per-100g food + prefilled amount) ---
+
+    @Test
+    fun `selectRecentFood scales macros back to per-100g and prefills the previous amount`() = runTest {
+        viewModel = viewModel()
+        // entry() uses a 52 kcal / 100 g base, so 200 g -> 104 kcal.
+        viewModel.selectRecentFood(entry("Banane", 200.0))
+
+        val food = viewModel.uiState.value.selectedFood
+        assertNotNull(food)
+        assertEquals("Banane", food!!.name)
+        assertEquals(52.0, food.kcalPer100g, 0.001)
+        assertEquals(14.0, food.carbsPer100g, 0.001)
+        // The last used amount is pre-filled (integer formatted without decimals).
+        assertEquals("200", viewModel.uiState.value.amountGrams)
+    }
+
+    @Test
+    fun `selectRecentFood keeps a fractional amount as-is`() = runTest {
+        viewModel = viewModel()
+        viewModel.selectRecentFood(entry("Banane", 62.5))
+        assertEquals("62.5", viewModel.uiState.value.amountGrams)
+    }
+
+    // --- mealCategoryForHour (time-of-day -> default meal) ---
+
+    @Test
+    fun `mealCategoryForHour maps each time band`() {
+        assertEquals(MealCategory.BREAKFAST, mealCategoryForHour(5))
+        assertEquals(MealCategory.BREAKFAST, mealCategoryForHour(9))
+        assertEquals(MealCategory.LUNCH, mealCategoryForHour(10))
+        assertEquals(MealCategory.LUNCH, mealCategoryForHour(13))
+        assertEquals(MealCategory.DINNER, mealCategoryForHour(17))
+        assertEquals(MealCategory.DINNER, mealCategoryForHour(21))
+    }
+
+    @Test
+    fun `mealCategoryForHour falls back to snack outside the meal bands`() {
+        assertEquals(MealCategory.SNACK, mealCategoryForHour(4))
+        assertEquals(MealCategory.SNACK, mealCategoryForHour(14))
+        assertEquals(MealCategory.SNACK, mealCategoryForHour(16))
+        assertEquals(MealCategory.SNACK, mealCategoryForHour(22))
+        assertEquals(MealCategory.SNACK, mealCategoryForHour(0))
+    }
+
     // --- helpers ---
 
     private fun viewModel() = AddFoodViewModel(
