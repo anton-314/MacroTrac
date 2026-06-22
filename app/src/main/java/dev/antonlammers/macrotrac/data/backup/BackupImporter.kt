@@ -7,6 +7,7 @@ import dev.antonlammers.macrotrac.domain.repository.CustomFoodRepository
 import dev.antonlammers.macrotrac.domain.repository.FoodEntryRepository
 import dev.antonlammers.macrotrac.domain.repository.GoalRepository
 import dev.antonlammers.macrotrac.domain.repository.WeightRepository
+import java.io.InputStream
 import java.util.zip.ZipInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -40,105 +41,130 @@ class BackupImporter @Inject constructor(
     )
 
     suspend fun import(uri: Uri): Result =
-        if (isZip(uri)) importZip(uri) else importSingleCsv(uri)
+        if (isZip(uri)) {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                importZipEntries(input, foodEntryRepository, weightRepository, goalRepository, customFoodRepository)
+            } ?: Result()
+        } else {
+            val lines = context.contentResolver.openInputStream(uri)
+                ?.bufferedReader(Charsets.UTF_8)
+                ?.readLines()
+                ?.filter { it.isNotBlank() }
+                ?: return Result()
+            importCsvLines(lines, foodEntryRepository, weightRepository, goalRepository, customFoodRepository)
+        }
 
     private fun isZip(uri: Uri): Boolean =
         context.contentResolver.openInputStream(uri)?.use { stream ->
             val header = ByteArray(2)
             stream.read(header) == 2 && header[0] == 0x50.toByte() && header[1] == 0x4B.toByte()
         } ?: false
+}
 
-    private suspend fun importZip(uri: Uri): Result {
-        var foodImported = 0
-        var foodSkipped = 0
-        var weightImported = 0
-        var goalRestored = false
-        var customFoodsImported = 0
+/**
+ * Reads a backup ZIP, dispatching each known entry to its CSV parser and repository.
+ * Pure with respect to Android (takes a plain [InputStream]) so it is directly unit-testable.
+ * Unknown or missing entries are ignored, so backups from older app versions still import.
+ */
+internal suspend fun importZipEntries(
+    input: InputStream,
+    foodEntryRepository: FoodEntryRepository,
+    weightRepository: WeightRepository,
+    goalRepository: GoalRepository,
+    customFoodRepository: CustomFoodRepository,
+): BackupImporter.Result {
+    var foodImported = 0
+    var foodSkipped = 0
+    var weightImported = 0
+    var goalRestored = false
+    var customFoodsImported = 0
 
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            ZipInputStream(input).use { zip ->
-                var entry = zip.nextEntry
-                while (entry != null) {
-                    val content = zip.readBytes().toString(Charsets.UTF_8)
-                    val lines = content.lines().filter { it.isNotBlank() }
-                    when (entry.name) {
-                        "food_entries.csv" -> if (lines.size > 1) {
-                            val headers = CsvFormat.parseHeaders(lines.first())
-                            lines.drop(1).forEach { line ->
-                                val e = runCatching { CsvFormat.fromRow(line, headers) }.getOrNull()
-                                if (e != null) { foodEntryRepository.add(e); foodImported++ }
-                                else foodSkipped++
-                            }
-                        }
-                        "weight_entries.csv" -> if (lines.size > 1) {
-                            val headers = CsvFormat.parseHeaders(lines.first())
-                            lines.drop(1).forEach { line ->
-                                val e = runCatching { WeightCsvFormat.fromRow(line, headers) }.getOrNull()
-                                if (e != null) { weightRepository.save(e); weightImported++ }
-                            }
-                        }
-                        "daily_goal.csv" -> if (lines.size > 1) {
-                            val headers = CsvFormat.parseHeaders(lines.first())
-                            val goal = runCatching { GoalCsvFormat.fromRow(lines[1], headers) }.getOrNull()
-                            if (goal != null) { goalRepository.save(goal); goalRestored = true }
-                        }
-                        "custom_foods.csv" -> if (lines.size > 1) {
-                            val headers = CsvFormat.parseHeaders(lines.first())
-                            lines.drop(1).forEach { line ->
-                                val f = runCatching { CustomFoodCsvFormat.fromRow(line, headers) }.getOrNull()
-                                if (f != null) { customFoodRepository.save(f); customFoodsImported++ }
-                            }
-                        }
+    ZipInputStream(input).use { zip ->
+        var entry = zip.nextEntry
+        while (entry != null) {
+            val content = zip.readBytes().toString(Charsets.UTF_8)
+            val lines = content.lines().filter { it.isNotBlank() }
+            when (entry.name) {
+                "food_entries.csv" -> if (lines.size > 1) {
+                    val headers = CsvFormat.parseHeaders(lines.first())
+                    lines.drop(1).forEach { line ->
+                        val e = runCatching { CsvFormat.fromRow(line, headers) }.getOrNull()
+                        if (e != null) { foodEntryRepository.add(e); foodImported++ }
+                        else foodSkipped++
                     }
-                    zip.closeEntry()
-                    entry = zip.nextEntry
+                }
+                "weight_entries.csv" -> if (lines.size > 1) {
+                    val headers = CsvFormat.parseHeaders(lines.first())
+                    lines.drop(1).forEach { line ->
+                        val e = runCatching { WeightCsvFormat.fromRow(line, headers) }.getOrNull()
+                        if (e != null) { weightRepository.save(e); weightImported++ }
+                    }
+                }
+                "daily_goal.csv" -> if (lines.size > 1) {
+                    val headers = CsvFormat.parseHeaders(lines.first())
+                    val goal = runCatching { GoalCsvFormat.fromRow(lines[1], headers) }.getOrNull()
+                    if (goal != null) { goalRepository.save(goal); goalRestored = true }
+                }
+                "custom_foods.csv" -> if (lines.size > 1) {
+                    val headers = CsvFormat.parseHeaders(lines.first())
+                    lines.drop(1).forEach { line ->
+                        val f = runCatching { CustomFoodCsvFormat.fromRow(line, headers) }.getOrNull()
+                        if (f != null) { customFoodRepository.save(f); customFoodsImported++ }
+                    }
                 }
             }
+            zip.closeEntry()
+            entry = zip.nextEntry
         }
-
-        return Result(foodImported, foodSkipped, weightImported, goalRestored, customFoodsImported)
     }
 
-    private suspend fun importSingleCsv(uri: Uri): Result {
-        val lines = context.contentResolver.openInputStream(uri)
-            ?.bufferedReader(Charsets.UTF_8)
-            ?.readLines()
-            ?.filter { it.isNotBlank() }
-            ?: return Result()
+    return BackupImporter.Result(foodImported, foodSkipped, weightImported, goalRestored, customFoodsImported)
+}
 
-        if (lines.size < 2) return Result()
+/**
+ * Imports a single CSV (already split into non-blank lines), routing by detected type.
+ * Pure with respect to Android so it is directly unit-testable.
+ */
+internal suspend fun importCsvLines(
+    lines: List<String>,
+    foodEntryRepository: FoodEntryRepository,
+    weightRepository: WeightRepository,
+    goalRepository: GoalRepository,
+    customFoodRepository: CustomFoodRepository,
+): BackupImporter.Result {
+    if (lines.size < 2) return BackupImporter.Result()
 
-        val headers = CsvFormat.parseHeaders(lines.first())
-        return when (detectCsvType(headers)) {
-            CsvType.FOOD_ENTRIES -> {
-                var imported = 0; var skipped = 0
-                lines.drop(1).forEach { line ->
-                    val e = runCatching { CsvFormat.fromRow(line, headers) }.getOrNull()
-                    if (e != null) { foodEntryRepository.add(e); imported++ } else skipped++
-                }
-                Result(foodImported = imported, foodSkipped = skipped)
+    val headers = CsvFormat.parseHeaders(lines.first())
+    return when (detectCsvType(headers)) {
+        CsvType.FOOD_ENTRIES -> {
+            var imported = 0; var skipped = 0
+            lines.drop(1).forEach { line ->
+                val e = runCatching { CsvFormat.fromRow(line, headers) }.getOrNull()
+                if (e != null) { foodEntryRepository.add(e); imported++ } else skipped++
             }
-            CsvType.WEIGHT_ENTRIES -> {
-                var imported = 0
-                lines.drop(1).forEach { line ->
-                    val e = runCatching { WeightCsvFormat.fromRow(line, headers) }.getOrNull()
-                    if (e != null) { weightRepository.save(e); imported++ }
-                }
-                Result(weightImported = imported)
-            }
-            CsvType.DAILY_GOAL -> {
-                val goal = runCatching { GoalCsvFormat.fromRow(lines[1], headers) }.getOrNull()
-                if (goal != null) { goalRepository.save(goal); Result(goalRestored = true) } else Result()
-            }
-            CsvType.CUSTOM_FOODS -> {
-                var imported = 0
-                lines.drop(1).forEach { line ->
-                    val f = runCatching { CustomFoodCsvFormat.fromRow(line, headers) }.getOrNull()
-                    if (f != null) { customFoodRepository.save(f); imported++ }
-                }
-                Result(customFoodsImported = imported)
-            }
-            CsvType.UNKNOWN -> Result()
+            BackupImporter.Result(foodImported = imported, foodSkipped = skipped)
         }
+        CsvType.WEIGHT_ENTRIES -> {
+            var imported = 0
+            lines.drop(1).forEach { line ->
+                val e = runCatching { WeightCsvFormat.fromRow(line, headers) }.getOrNull()
+                if (e != null) { weightRepository.save(e); imported++ }
+            }
+            BackupImporter.Result(weightImported = imported)
+        }
+        CsvType.DAILY_GOAL -> {
+            val goal = runCatching { GoalCsvFormat.fromRow(lines[1], headers) }.getOrNull()
+            if (goal != null) { goalRepository.save(goal); BackupImporter.Result(goalRestored = true) }
+            else BackupImporter.Result()
+        }
+        CsvType.CUSTOM_FOODS -> {
+            var imported = 0
+            lines.drop(1).forEach { line ->
+                val f = runCatching { CustomFoodCsvFormat.fromRow(line, headers) }.getOrNull()
+                if (f != null) { customFoodRepository.save(f); imported++ }
+            }
+            BackupImporter.Result(customFoodsImported = imported)
+        }
+        CsvType.UNKNOWN -> BackupImporter.Result()
     }
 }
