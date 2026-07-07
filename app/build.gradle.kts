@@ -55,6 +55,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.compose.material.icons)
+    implementation(libs.androidx.compose.ui.text.google.fonts)
 
     // Hilt
     implementation(libs.hilt.android)

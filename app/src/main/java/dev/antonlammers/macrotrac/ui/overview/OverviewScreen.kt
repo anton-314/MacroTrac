@@ -24,15 +24,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
@@ -110,7 +110,7 @@ fun OverviewScreen(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         IconButton(onClick = viewModel::previousDay) {
-                            Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Vorheriger Tag")
+                            Icon(Icons.Rounded.KeyboardArrowLeft, contentDescription = "Vorheriger Tag")
                         }
                         Text(
                             state.date.format(DateTimeFormatter.ofPattern("EEE, d. MMM", Locale("de"))),
@@ -119,7 +119,7 @@ fun OverviewScreen(
                             style = MaterialTheme.typography.titleMedium,
                         )
                         IconButton(onClick = viewModel::nextDay) {
-                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Nächster Tag")
+                            Icon(Icons.Rounded.KeyboardArrowRight, contentDescription = "Nächster Tag")
                         }
                     }
                 },
@@ -132,7 +132,7 @@ fun OverviewScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { navController.navigate(Screen.AddFood.withDate(state.date)) }) {
-                Icon(Icons.Default.Add, contentDescription = "Mahlzeit hinzufügen")
+                Icon(Icons.Rounded.Add, contentDescription = "Mahlzeit hinzufügen")
             }
         },
         snackbarHost = { SnackbarHost(snackbar) },
@@ -255,12 +255,12 @@ fun OverviewScreen(
                                 ) {
                                     when (dismissState.targetValue) {
                                         SwipeToDismissBoxValue.EndToStart -> Icon(
-                                            Icons.Default.Delete,
+                                            Icons.Rounded.Delete,
                                             contentDescription = "Löschen",
                                             tint = MaterialTheme.colorScheme.onErrorContainer,
                                         )
                                         SwipeToDismissBoxValue.StartToEnd -> Icon(
-                                            Icons.Default.Edit,
+                                            Icons.Rounded.Edit,
                                             contentDescription = "Bearbeiten",
                                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                         )
@@ -650,7 +650,7 @@ private fun WeightCard(weight: WeightEntry?, onSave: (Double) -> Unit) {
                     fontWeight = FontWeight.Medium,
                 )
                 Icon(
-                    Icons.Default.Edit,
+                    Icons.Rounded.Edit,
                     contentDescription = "Bearbeiten",
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -698,7 +698,7 @@ private fun CopyMealButton(label: String, onClick: () -> Unit) {
             .padding(vertical = 4.dp),
     ) {
         Icon(
-            Icons.Default.ContentCopy,
+            Icons.Rounded.ContentCopy,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
         )

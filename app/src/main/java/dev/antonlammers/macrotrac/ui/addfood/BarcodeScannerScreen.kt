@@ -32,10 +32,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FlashOff
-import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.FlashOff
+import androidx.compose.material.icons.rounded.FlashOn
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -122,7 +122,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                         .padding(16.dp),
                 ) {
                     Icon(
-                        imageVector = if (torchOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                        imageVector = if (torchOn) Icons.Rounded.FlashOn else Icons.Rounded.FlashOff,
                         contentDescription = if (torchOn) "Taschenlampe ausschalten" else "Taschenlampe einschalten",
                         tint = Color.White,
                     )
@@ -164,7 +164,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                             enabled = manualBarcode.isNotBlank(),
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Search,
+                                imageVector = Icons.Rounded.Search,
                                 contentDescription = "Barcode suchen",
                             )
                         }
@@ -190,7 +190,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                 .align(Alignment.TopEnd)
                 .padding(16.dp),
         ) {
-            Icon(Icons.Default.Close, contentDescription = "Schließen", tint = Color.White)
+            Icon(Icons.Rounded.Close, contentDescription = "Schließen", tint = Color.White)
         }
     }
 }

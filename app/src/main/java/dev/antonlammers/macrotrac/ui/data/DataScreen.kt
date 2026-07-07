@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -105,7 +105,7 @@ fun DataScreen(
                     enabled = !state.isLoading,
                 ) {
                     Icon(
-                        Icons.Default.FileDownload,
+                        Icons.Rounded.FileDownload,
                         contentDescription = null,
                         modifier = Modifier.padding(end = 8.dp),
                     )
@@ -123,7 +123,7 @@ fun DataScreen(
                     enabled = !state.isLoading,
                 ) {
                     Icon(
-                        Icons.Default.FileUpload,
+                        Icons.Rounded.FileUpload,
                         contentDescription = null,
                         modifier = Modifier.padding(end = 8.dp),
                     )

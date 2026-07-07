@@ -4,9 +4,9 @@ import androidx.camera.core.ExperimentalGetImage
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -42,9 +42,9 @@ sealed class Screen(val route: String) {
 private data class BottomNavItem(val screen: Screen, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 
 private val bottomNavItems = listOf(
-    BottomNavItem(Screen.Overview, "Übersicht", Icons.Default.Home),
-    BottomNavItem(Screen.Goals, "Ziele", Icons.Default.Flag),
-    BottomNavItem(Screen.Stats, "Statistik", Icons.Default.BarChart),
+    BottomNavItem(Screen.Overview, "Übersicht", Icons.Rounded.Home),
+    BottomNavItem(Screen.Goals, "Ziele", Icons.Rounded.Flag),
+    BottomNavItem(Screen.Stats, "Statistik", Icons.Rounded.BarChart),
 )
 
 @ExperimentalGetImage

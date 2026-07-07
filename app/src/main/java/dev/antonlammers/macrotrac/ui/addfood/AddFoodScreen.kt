@@ -18,10 +18,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -170,7 +170,7 @@ fun AddFoodScreen(
                 },
                 actions = {
                     IconButton(onClick = { showCreateDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Eigenes Lebensmittel")
+                        Icon(Icons.Rounded.Add, contentDescription = "Eigenes Lebensmittel")
                     }
                 },
             )
@@ -192,7 +192,7 @@ fun AddFoodScreen(
                 singleLine = true,
                 trailingIcon = {
                     IconButton(onClick = { navController.navigate(Screen.BarcodeScanner.route) }) {
-                        Icon(Icons.Default.QrCodeScanner, contentDescription = "Barcode scannen")
+                        Icon(Icons.Rounded.QrCodeScanner, contentDescription = "Barcode scannen")
                     }
                 },
                 keyboardOptions = KeyboardOptions.Default,
@@ -431,12 +431,12 @@ private fun SwipeableCustomFoodRow(
             ) {
                 when (dismissState.targetValue) {
                     SwipeToDismissBoxValue.EndToStart -> Icon(
-                        Icons.Default.Delete,
+                        Icons.Rounded.Delete,
                         contentDescription = "Löschen",
                         tint = MaterialTheme.colorScheme.onErrorContainer,
                     )
                     SwipeToDismissBoxValue.StartToEnd -> Icon(
-                        Icons.Default.Edit,
+                        Icons.Rounded.Edit,
                         contentDescription = "Bearbeiten",
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
@@ -473,7 +473,7 @@ private fun SwipeableHistoryRow(
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 Icon(
-                    Icons.Default.Delete,
+                    Icons.Rounded.Delete,
                     contentDescription = "Löschen",
                     tint = MaterialTheme.colorScheme.onErrorContainer,
                 )
