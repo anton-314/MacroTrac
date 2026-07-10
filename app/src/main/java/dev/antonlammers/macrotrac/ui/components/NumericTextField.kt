@@ -1,6 +1,7 @@
 package dev.antonlammers.macrotrac.ui.components
 
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -11,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 
@@ -27,16 +29,21 @@ import androidx.compose.ui.text.input.TextFieldValue
  * [TextFieldValue] — which carries the selection needed for select-all-on-focus — never leaks out.
  *
  * @param decimal `true` for a decimal keyboard (grams, kg), `false` for a whole-number keyboard.
+ * @param label floating Material label, or `null` when the caller supplies its own caption above.
+ * @param textStyle style for the value text (e.g. a serif style for the Goals editor).
+ * @param leadingIcon optional leading slot, e.g. a small colored accent tick.
  */
 @Composable
 fun NumericTextField(
     value: String,
     onValueChange: (String) -> Unit,
-    label: String,
+    label: String?,
     modifier: Modifier = Modifier,
     decimal: Boolean = true,
     suffix: String? = null,
     supportingText: String? = null,
+    textStyle: TextStyle = LocalTextStyle.current,
+    leadingIcon: @Composable (() -> Unit)? = null,
 ) {
     var fieldValue by remember {
         mutableStateOf(TextFieldValue(value, TextRange(value.length)))
@@ -53,7 +60,9 @@ fun NumericTextField(
             fieldValue = it
             if (it.text != value) onValueChange(it.text)
         },
-        label = { Text(label) },
+        label = label?.let { { Text(it) } },
+        textStyle = textStyle,
+        leadingIcon = leadingIcon,
         keyboardOptions = KeyboardOptions(
             keyboardType = if (decimal) KeyboardType.Decimal else KeyboardType.Number,
         ),
