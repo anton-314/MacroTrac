@@ -6,11 +6,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.FitnessCenter
-import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.FitnessCenter
-import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -60,7 +61,7 @@ private data class BottomNavItem(
 
 // Active tab uses the filled (Rounded) icon variant, inactive the outline variant.
 private val bottomNavItems = listOf(
-    BottomNavItem(Screen.Overview, "Ernährung", Icons.Rounded.Home, Icons.Outlined.Home),
+    BottomNavItem(Screen.Overview, "Ernährung", Icons.Rounded.Restaurant, Icons.Outlined.Restaurant),
     BottomNavItem(Screen.Workout, "Training", Icons.Rounded.FitnessCenter, Icons.Outlined.FitnessCenter),
     BottomNavItem(Screen.Stats, "Statistik", Icons.Rounded.BarChart, Icons.Outlined.BarChart),
     BottomNavItem(Screen.Settings, "Einstellungen", Icons.Rounded.Settings, Icons.Outlined.Settings),
@@ -115,7 +116,20 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                                 contentDescription = item.label,
                             )
                         },
-                        label = { Text(item.label) },
+                        label = {
+                            // Compact, single-line label: drops the wide mono tracking and
+                            // shrinks slightly so the longest label ("Einstellungen") fits one
+                            // line across four cells instead of wrapping.
+                            Text(
+                                item.label,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontSize = 10.sp,
+                                    letterSpacing = 0.sp,
+                                ),
+                                maxLines = 1,
+                                softWrap = false,
+                            )
+                        },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = MaterialTheme.colorScheme.primary,
                             selectedTextColor = MaterialTheme.colorScheme.primary,
