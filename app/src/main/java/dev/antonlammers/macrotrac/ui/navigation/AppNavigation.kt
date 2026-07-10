@@ -18,13 +18,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -110,32 +108,18 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                                 restoreState = true
                             }
                         },
+                        // Icon-only nav: labels are dropped (the pictograms are self-explanatory);
+                        // the label text lives on as the icon's contentDescription for a11y.
                         icon = {
                             Icon(
                                 if (selected) item.selectedIcon else item.unselectedIcon,
                                 contentDescription = item.label,
                             )
                         },
-                        label = {
-                            // Compact, single-line label: drops the wide mono tracking and
-                            // shrinks slightly so the longest label ("Einstellungen") fits one
-                            // line across four cells instead of wrapping.
-                            Text(
-                                item.label,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontSize = 10.sp,
-                                    letterSpacing = 0.sp,
-                                ),
-                                maxLines = 1,
-                                softWrap = false,
-                            )
-                        },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
                             indicatorColor = Color.Transparent,
                             unselectedIconColor = MaterialTheme.colorScheme.outline,
-                            unselectedTextColor = MaterialTheme.colorScheme.outline,
                         ),
                     )
                 }
