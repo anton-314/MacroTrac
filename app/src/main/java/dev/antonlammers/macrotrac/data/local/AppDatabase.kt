@@ -6,23 +6,39 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import dev.antonlammers.macrotrac.data.local.dao.CustomFoodDao
 import dev.antonlammers.macrotrac.data.local.dao.DailyGoalDao
+import dev.antonlammers.macrotrac.data.local.dao.ExerciseDao
 import dev.antonlammers.macrotrac.data.local.dao.FoodEntryDao
 import dev.antonlammers.macrotrac.data.local.dao.WeightEntryDao
+import dev.antonlammers.macrotrac.data.local.dao.WorkoutSessionDao
+import dev.antonlammers.macrotrac.data.local.dao.WorkoutTemplateDao
 import dev.antonlammers.macrotrac.data.local.entity.CustomFoodEntity
 import dev.antonlammers.macrotrac.data.local.entity.DailyGoalEntity
+import dev.antonlammers.macrotrac.data.local.entity.ExerciseEntity
 import dev.antonlammers.macrotrac.data.local.entity.FoodEntryEntity
+import dev.antonlammers.macrotrac.data.local.entity.SessionExerciseEntity
+import dev.antonlammers.macrotrac.data.local.entity.SetEntryEntity
+import dev.antonlammers.macrotrac.data.local.entity.TemplateExerciseEntity
 import dev.antonlammers.macrotrac.data.local.entity.WeightEntryEntity
+import dev.antonlammers.macrotrac.data.local.entity.WorkoutSessionEntity
+import dev.antonlammers.macrotrac.data.local.entity.WorkoutTemplateEntity
 
 @Database(
-    entities = [FoodEntryEntity::class, DailyGoalEntity::class, WeightEntryEntity::class, CustomFoodEntity::class],
-    version = 7,
-    exportSchema = false,
+    entities = [
+        FoodEntryEntity::class, DailyGoalEntity::class, WeightEntryEntity::class, CustomFoodEntity::class,
+        ExerciseEntity::class, WorkoutTemplateEntity::class, TemplateExerciseEntity::class,
+        WorkoutSessionEntity::class, SessionExerciseEntity::class, SetEntryEntity::class,
+    ],
+    version = 8,
+    exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun foodEntryDao(): FoodEntryDao
     abstract fun dailyGoalDao(): DailyGoalDao
     abstract fun weightEntryDao(): WeightEntryDao
     abstract fun customFoodDao(): CustomFoodDao
+    abstract fun exerciseDao(): ExerciseDao
+    abstract fun workoutTemplateDao(): WorkoutTemplateDao
+    abstract fun workoutSessionDao(): WorkoutSessionDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -88,6 +104,34 @@ abstract class AppDatabase : RoomDatabase() {
                 // Clean-eating tag, stored as the FoodTag enum name; 'NONE' = untagged (default).
                 db.execSQL("ALTER TABLE food_entries ADD COLUMN tag TEXT NOT NULL DEFAULT 'NONE'")
                 db.execSQL("ALTER TABLE custom_foods ADD COLUMN tag TEXT NOT NULL DEFAULT 'NONE'")
+            }
+        }
+
+        /**
+         * Adds the workout module tables. Purely additive — existing tables are untouched. The
+         * CREATE statements are copied verbatim from Room's generated v8 schema (schemas/…/8.json)
+         * so the migrated schema matches what Room expects for the entities exactly.
+         */
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `exercises` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `stableId` TEXT NOT NULL, `name` TEXT NOT NULL, `type` TEXT NOT NULL, `isCustom` INTEGER NOT NULL, `primaryMuscles` TEXT NOT NULL, `secondaryMuscles` TEXT NOT NULL, `equipment` TEXT, `mechanic` TEXT, `category` TEXT, `instructions` TEXT NOT NULL, `restSeconds` INTEGER)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_exercises_stableId` ON `exercises` (`stableId`)")
+
+                db.execSQL("CREATE TABLE IF NOT EXISTS `workout_templates` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `stableId` TEXT NOT NULL, `name` TEXT NOT NULL)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_workout_templates_stableId` ON `workout_templates` (`stableId`)")
+
+                db.execSQL("CREATE TABLE IF NOT EXISTS `template_exercises` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `templateId` INTEGER NOT NULL, `exerciseStableId` TEXT NOT NULL, `position` INTEGER NOT NULL, `targetSets` INTEGER NOT NULL, FOREIGN KEY(`templateId`) REFERENCES `workout_templates`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_template_exercises_templateId` ON `template_exercises` (`templateId`)")
+
+                db.execSQL("CREATE TABLE IF NOT EXISTS `workout_sessions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `stableId` TEXT NOT NULL, `date` TEXT NOT NULL, `isActive` INTEGER NOT NULL, `startedAtMs` INTEGER NOT NULL, `endedAtMs` INTEGER, `note` TEXT)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_workout_sessions_stableId` ON `workout_sessions` (`stableId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_sessions_isActive` ON `workout_sessions` (`isActive`)")
+
+                db.execSQL("CREATE TABLE IF NOT EXISTS `session_exercises` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionId` INTEGER NOT NULL, `exerciseStableId` TEXT NOT NULL, `position` INTEGER NOT NULL, `supersetGroupId` INTEGER, FOREIGN KEY(`sessionId`) REFERENCES `workout_sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_session_exercises_sessionId` ON `session_exercises` (`sessionId`)")
+
+                db.execSQL("CREATE TABLE IF NOT EXISTS `set_entries` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionExerciseId` INTEGER NOT NULL, `position` INTEGER NOT NULL, `weightKg` REAL NOT NULL, `reps` INTEGER NOT NULL, `type` TEXT NOT NULL, `completed` INTEGER NOT NULL, FOREIGN KEY(`sessionExerciseId`) REFERENCES `session_exercises`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_set_entries_sessionExerciseId` ON `set_entries` (`sessionExerciseId`)")
             }
         }
     }

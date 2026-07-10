@@ -10,8 +10,11 @@ import dagger.hilt.components.SingletonComponent
 import dev.antonlammers.macrotrac.data.local.AppDatabase
 import dev.antonlammers.macrotrac.data.local.dao.CustomFoodDao
 import dev.antonlammers.macrotrac.data.local.dao.DailyGoalDao
+import dev.antonlammers.macrotrac.data.local.dao.ExerciseDao
 import dev.antonlammers.macrotrac.data.local.dao.FoodEntryDao
 import dev.antonlammers.macrotrac.data.local.dao.WeightEntryDao
+import dev.antonlammers.macrotrac.data.local.dao.WorkoutSessionDao
+import dev.antonlammers.macrotrac.data.local.dao.WorkoutTemplateDao
 import javax.inject.Singleton
 
 @Module
@@ -29,6 +32,7 @@ object DatabaseModule {
                 AppDatabase.MIGRATION_4_5,
                 AppDatabase.MIGRATION_5_6,
                 AppDatabase.MIGRATION_6_7,
+                AppDatabase.MIGRATION_7_8,
             )
             .build()
 
@@ -43,4 +47,13 @@ object DatabaseModule {
 
     @Provides
     fun provideCustomFoodDao(db: AppDatabase): CustomFoodDao = db.customFoodDao()
+
+    @Provides
+    fun provideExerciseDao(db: AppDatabase): ExerciseDao = db.exerciseDao()
+
+    @Provides
+    fun provideWorkoutTemplateDao(db: AppDatabase): WorkoutTemplateDao = db.workoutTemplateDao()
+
+    @Provides
+    fun provideWorkoutSessionDao(db: AppDatabase): WorkoutSessionDao = db.workoutSessionDao()
 }

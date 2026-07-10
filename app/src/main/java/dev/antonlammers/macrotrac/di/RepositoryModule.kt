@@ -5,17 +5,25 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dev.antonlammers.macrotrac.data.repository.CustomFoodRepositoryImpl
+import dev.antonlammers.macrotrac.data.repository.ExerciseCatalogRepositoryImpl
 import dev.antonlammers.macrotrac.data.repository.FoodEntryRepositoryImpl
 import dev.antonlammers.macrotrac.data.repository.FoodSearchRepositoryImpl
 import dev.antonlammers.macrotrac.data.repository.GoalRepositoryImpl
+import dev.antonlammers.macrotrac.data.repository.RoomTransactionRunner
 import dev.antonlammers.macrotrac.data.repository.SettingsRepositoryImpl
+import dev.antonlammers.macrotrac.data.repository.TransactionRunner
 import dev.antonlammers.macrotrac.data.repository.WeightRepositoryImpl
+import dev.antonlammers.macrotrac.data.repository.WorkoutSessionRepositoryImpl
+import dev.antonlammers.macrotrac.data.repository.WorkoutTemplateRepositoryImpl
 import dev.antonlammers.macrotrac.domain.repository.CustomFoodRepository
+import dev.antonlammers.macrotrac.domain.repository.ExerciseCatalogRepository
 import dev.antonlammers.macrotrac.domain.repository.FoodEntryRepository
 import dev.antonlammers.macrotrac.domain.repository.FoodSearchRepository
 import dev.antonlammers.macrotrac.domain.repository.GoalRepository
 import dev.antonlammers.macrotrac.domain.repository.SettingsRepository
 import dev.antonlammers.macrotrac.domain.repository.WeightRepository
+import dev.antonlammers.macrotrac.domain.repository.WorkoutSessionRepository
+import dev.antonlammers.macrotrac.domain.repository.WorkoutTemplateRepository
 import javax.inject.Singleton
 
 @Module
@@ -39,4 +47,16 @@ abstract class RepositoryModule {
 
     @Binds @Singleton
     abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
+
+    @Binds @Singleton
+    abstract fun bindExerciseCatalogRepository(impl: ExerciseCatalogRepositoryImpl): ExerciseCatalogRepository
+
+    @Binds @Singleton
+    abstract fun bindWorkoutTemplateRepository(impl: WorkoutTemplateRepositoryImpl): WorkoutTemplateRepository
+
+    @Binds @Singleton
+    abstract fun bindWorkoutSessionRepository(impl: WorkoutSessionRepositoryImpl): WorkoutSessionRepository
+
+    @Binds @Singleton
+    abstract fun bindTransactionRunner(impl: RoomTransactionRunner): TransactionRunner
 }

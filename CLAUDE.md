@@ -47,11 +47,16 @@ MVVM, single `app` module, Jetpack Compose + Material3. All dependency versions 
 ```
 app/src/main/java/dev/antonlammers/macrotrac/
 ├── domain/                  # Pure Kotlin — no Android deps
-│   ├── model/               # Food, FoodEntry, DailyGoal, WeightEntry, MealCategory, FoodTag
+│   ├── model/               # Food, FoodEntry, DailyGoal, WeightEntry, MealCategory, FoodTag,
+│   │                        #   Exercise/ExerciseType/Mechanic, WorkoutTemplate/TemplateExercise,
+│   │                        #   WorkoutSession/SessionExercise/SetEntry/SetType (workout module)
 │   └── repository/          # FoodSearchRepository, FoodEntryRepository, GoalRepository,
-│                            #   WeightRepository (interfaces)
+│                            #   WeightRepository, CustomFoodRepository, SettingsRepository,
+│                            #   ExerciseCatalogRepository, WorkoutTemplateRepository,
+│                            #   WorkoutSessionRepository (interfaces)
 ├── data/
-│   ├── local/               # Room: AppDatabase (v3), DAOs, entities (date stored as ISO String)
+│   ├── local/               # Room: AppDatabase (v8), DAOs, entities (date stored as ISO String),
+│                            #   relation/ (nested @Relation POJOs for template/session reads)
 │   ├── remote/              # Retrofit: OpenFoodFactsApi + DTOs (Moshi @JsonClass)
 │   └── repository/          # Implementations of domain interfaces, entity↔model mapping
 ├── di/                      # Hilt modules: DatabaseModule, NetworkModule, RepositoryModule
@@ -75,11 +80,14 @@ app/src/main/java/dev/antonlammers/macrotrac/
 ### Tests
 
 Unit tests live in `app/src/test/`. Fakes (no mocking library) are in `.../fake/`:
-- `FakeFoodEntryRepository`, `FakeGoalRepository`, `FakeFoodSearchRepository`, `FakeWeightRepository`
+- `FakeFoodEntryRepository`, `FakeGoalRepository`, `FakeFoodSearchRepository`, `FakeWeightRepository`, `FakeCustomFoodRepository`
+- Workout module: `FakeExerciseCatalogRepository`, `FakeWorkoutTemplateRepository`, `FakeWorkoutSessionRepository` (the session fake encodes the "at most one active session" invariant) — for upcoming workout ViewModel tests.
 
 Tests use `kotlinx-coroutines-test` + `turbine`. All ViewModels have full test coverage.
 
-Compose UI behaviour is tested under `app/src/androidTest/` with `createComposeRule` (e.g. `ui/components/NumericTextFieldTest`). These are instrumented tests — run them with `connectedDebugAndroidTest` against an emulator/device, not `testDebugUnitTest`.
+Entity↔domain mapping is kept in pure, Android-free helpers so it can be unit-tested without Room (like `CsvFormat`): the workout module's mapping lives in `WorkoutMappers` (tested by `WorkoutMappersTest`). Repository behaviour is tested with in-memory fake DAOs + a pass-through `TransactionRunner` (`WorkoutRepositoriesTest`) — no Robolectric/instrumentation needed for `testDebugUnitTest`.
+
+Compose UI behaviour **and** Room migrations are tested under `app/src/androidTest/` — instrumented, run with `connectedDebugAndroidTest` against an emulator/device, not `testDebugUnitTest`. `WorkoutMigrationTest` exercises the real v7 → v8 migration on Android's SQLite (creates a v7 DB, runs `MIGRATION_7_8`, asserts the new tables + preserved data + FK cascade). Room's schema JSON is exported to `app/schemas/` (`exportSchema = true` + the `room.schemaLocation` KSP arg) — the `MIGRATION_7_8` CREATE statements are copied verbatim from the generated `8.json`, so the migrated schema matches the entities exactly.
 
 ### Backup & data portability
 
@@ -154,4 +162,9 @@ All CSV parsing is name-based (column order is irrelevant on import). This gives
   - The worker gets its repositories via a Hilt `@EntryPoint` (`EntryPointAccessors.fromApplication`) — deliberately **not** `@HiltWorker`, so no custom `WorkerFactory`/`Configuration.Provider` is needed and the default WorkManager initializer stays in use.
   - `MealReminderNotifier` builds the notification and taps open `MainActivity`. `POST_NOTIFICATIONS` (Android 13+) is declared in the manifest and requested in `MainActivity.onCreate`.
   - **Enable/disable**: `SettingsRepository` (domain interface, `SettingsRepositoryImpl` backed by `SharedPreferences` "macrotrac_settings") stores `meal_reminder_enabled` (default **true**). The toggle lives in the **Settings hub "Daten" section** ("Tägliche Erinnerung"), a flat card with a pill-styled `Switch` (accent `primary` track + `onPrimary` thumb when on; `surfaceVariant`/surface-2 track + `outline` thumb when off, transparent borders). The worker reads the flag each run and no-ops when disabled (still reschedules), so toggling needs no scheduler coupling.
-- **DB schema**: version 7. Migrations: 1→2 adds sugar/fiber/mealCategory columns; 2→3 adds the `weight_entries` table; 3→4 adds the `custom_foods` table; 4→5 adds `saltG` to `food_entries` and `saltPer100g` to `custom_foods`; 5→6 adds nullable `targetWeightKg` to `daily_goal`; 6→7 adds `tag TEXT NOT NULL DEFAULT 'NONE'` to both `food_entries` and `custom_foods`.
+- **Workout module** (data model + persistence; no UI yet — see `docs/workout-spec.md`). Lives parallel to the nutrition side and only touches it at defined points (later: body weight, date). Domain models are Android-free: `Exercise` (catalog + custom), `WorkoutTemplate`/`TemplateExercise`, `WorkoutSession`/`SessionExercise`/`SetEntry`, plus enums `ExerciseType` (WEIGHT_REPS/BODYWEIGHT — additively extensible), `SetType` (WARMUP/NORMAL/DROP/FAILURE), `Mechanic` (COMPOUND/ISOLATION, nullable). Each enum has a defensive `parse` (fallback to a default / null).
+  - **Stable string keys.** Everything references an exercise by its `stableId` (catalog = free-exercise-db id, custom = generated UUID), **never** the Room row id — keeps cross-device backup import (a later step) consistent. `WorkoutTemplate`/`WorkoutSession` also carry a `stableId` (UUID) for the same reason. Within the DB, parent→child links (template→its exercises, session→exercises→sets) use row-id foreign keys with `onDelete = CASCADE`.
+  - **Session status.** `WorkoutSession.isActive` marks the single in-progress session (persisted continuously so it survives app death / can be resumed); `activeSession()` is the indexed lookup. At most one active session is an app-logic invariant (SQLite can't express a partial unique index Room would validate).
+  - **Room shape.** Entities under `data/local/entity/`, nested read POJOs under `data/local/relation/` (`TemplateWithExercises`, `SessionWithExercises` → `SessionExerciseWithSets`, two-level `@Relation`). DAOs are interfaces; `@Transaction @Query` for graph reads. `Exercise` list fields (muscles, instructions) are stored newline-joined in one column and split in mapping (no Room `TypeConverter` introduced). Ordering isn't guaranteed by `@Relation`, so children carry a `position` and mapping sorts by it; on save, positions are re-numbered from list order (canonical).
+  - **Repositories.** `ExerciseCatalogRepositoryImpl` (upsert-by-`stableId` via `@Insert(REPLACE)` on the unique index — row-id churn is harmless since nothing references it), `WorkoutTemplateRepositoryImpl`, `WorkoutSessionRepositoryImpl`. Composite writes (a template/session + its children) run inside a single transaction via an injected **`TransactionRunner`** (`RoomTransactionRunner` wraps `db.withTransaction`; a pass-through fake makes the repos unit-testable without Room). Mapping is the pure `WorkoutMappers`.
+- **DB schema**: version 8. Migrations: 1→2 adds sugar/fiber/mealCategory columns; 2→3 adds the `weight_entries` table; 3→4 adds the `custom_foods` table; 4→5 adds `saltG` to `food_entries` and `saltPer100g` to `custom_foods`; 5→6 adds nullable `targetWeightKg` to `daily_goal`; 6→7 adds `tag TEXT NOT NULL DEFAULT 'NONE'` to both `food_entries` and `custom_foods`; 7→8 adds the six **workout** tables (`exercises`, `workout_templates`, `template_exercises`, `workout_sessions`, `session_exercises`, `set_entries`) — purely additive, existing tables untouched. Schema JSON is exported to `app/schemas/`.
