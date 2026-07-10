@@ -3,6 +3,7 @@ package dev.antonlammers.macrotrac.ui.stats
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,14 +14,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -37,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -105,13 +110,29 @@ fun StatsScreen(
                     FilterChip(
                         selected = state.timeRange == range,
                         onClick = { statsViewModel.setTimeRange(range) },
-                        label = { Text(range.label) },
+                        label = {
+                            Text(
+                                range.label.uppercase(Locale("de")),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        },
+                        shape = RoundedCornerShape(50),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
                     )
                 }
             }
 
             // Calorie chart
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Kalorien", style = MaterialTheme.typography.titleSmall)
                     if (state.caloriePoints.isEmpty() || state.caloriePoints.all { it.value == 0.0 }) {
@@ -139,7 +160,13 @@ fun StatsScreen(
             }
 
             // Clean-eating chart
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -178,7 +205,13 @@ fun StatsScreen(
             }
 
             // Weight chart
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Gewicht", style = MaterialTheme.typography.titleSmall)
                     val weight = state.weight
@@ -229,6 +262,7 @@ fun StatsScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !dataState.isLoading,
+                shape = RoundedCornerShape(14.dp),
             ) {
                 Icon(Icons.Rounded.FileDownload, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                 Text("Vollständiges Backup exportieren")
@@ -238,6 +272,7 @@ fun StatsScreen(
                 onClick = { importLauncher.launch(arrayOf("application/zip", "text/csv", "*/*")) },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !dataState.isLoading,
+                shape = RoundedCornerShape(14.dp),
             ) {
                 Icon(Icons.Rounded.FileUpload, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                 Text("Backup importieren")
@@ -274,7 +309,14 @@ private fun CalorieBarChart(
 
                 drawRect(trackColor, Offset(x + pad, 0f), Size(barWidth - pad * 2, size.height))
                 if (fillHeight > 0f) {
-                    drawRect(barColor, Offset(x + pad, size.height - fillHeight), Size(barWidth - pad * 2, fillHeight))
+                    val radius = 4.dp.toPx().coerceAtMost(minOf((barWidth - pad * 2) / 2f, fillHeight))
+                    // Extend past the baseline so only the top corners round; the Canvas clips the rest.
+                    drawRoundRect(
+                        barColor,
+                        topLeft = Offset(x + pad, size.height - fillHeight),
+                        size = Size(barWidth - pad * 2, fillHeight + radius),
+                        cornerRadius = CornerRadius(radius, radius),
+                    )
                 }
             }
 
@@ -372,9 +414,13 @@ private fun WeightSummary(data: WeightChartData) {
 
 @Composable
 private fun SummaryStat(label: String, value: String) {
-    Column {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.titleSmall)
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            label.uppercase(Locale("de")),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(value, style = MaterialTheme.typography.titleMedium)
     }
 }
 
