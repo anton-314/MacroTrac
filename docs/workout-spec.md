@@ -6,7 +6,7 @@
 > erhalten bleibt. Es ergänzt `CLAUDE.md` (Architektur & Konventionen) — dort festgehaltene Regeln
 > gelten unverändert weiter.
 >
-> **Status:** 🟡 In Ausarbeitung (v0.1). Offene Punkte sind in Abschnitt 10 gesammelt.
+> **Status:** 🟢 Vollständig (v0.3) — bereit für die Prompt-Kette. Bewusste v1-Grenzen in §11.
 
 ---
 
@@ -94,10 +94,16 @@ Alltag selten gebraucht, und wandert in einen Einstellungs-/Profil-Hub.
 
 ### 3.3 Live-Session (Protokollierung)
 - Aus Vorlage **oder** leer gestartet.
+- **Fortlaufende Persistenz & Wiederaufnahme (kritisch).** Die aktive Session hat einen Status
+  (aktiv / abgeschlossen) und wird bei **jeder** Änderung sofort gespeichert — **nicht** erst am
+  Ende. Wird die App geschlossen oder vom System beendet, bleibt die laufende Session erhalten; der
+  Training-Tab bietet sie beim nächsten Start zur **Wiederaufnahme** an (mit sichtbarem Hinweis auf
+  eine laufende Einheit). Es gibt zu jedem Zeitpunkt höchstens **eine** aktive Session.
 - **Übungstypen (entschieden):** Gewicht × Reps **und** Körpergewichts-Übungen (Reps, mit
   optionalem Zusatzgewicht). Zeit-basiert (Halten) und Cardio/Distanz sind **nicht** Teil von v1,
   aber das Datenmodell wird so gewählt, dass sie additiv ergänzbar bleiben.
-- Echtzeit-Eingabe von **Gewicht** und **Wiederholungen** pro Satz; Satz „abhaken".
+- Echtzeit-Eingabe von **Gewicht** und **Wiederholungen** pro Satz; Satz „abhaken". Sätze lassen
+  sich hinzufügen, **löschen** und umordnen; Übungen innerhalb der Session hinzufügen/entfernen.
 - **Satz-Typen:** Warm-up, Normal, Drop-Satz, Failure (Kennzeichnung pro Satz).
 - **Inline-Historie:** grau hinterlegte Werte des letzten Trainings derselben Übung als
   Platzhalter/Orientierung im Eingabefeld.
@@ -110,17 +116,22 @@ Alltag selten gebraucht, und wandert in einen Einstellungs-/Profil-Hub.
 - Session-Ende: speichert die Einheit in die Historie, berechnet Volumen/1RM, prüft PRs.
 
 ### 3.4 Berechnungen ✅ entschieden
-- **Volumen** je Übung/Session = Σ (Gewicht × Reps). **Warm-up-Sätze zählen nicht ins Volumen.**
-  Bei Körpergewichts-Übungen geht das (optionale) Zusatzgewicht ein; ohne Zusatzgewicht trägt der
-  Satz kein Volumen bei (Reps werden trotzdem protokolliert).
-- **Geschätztes 1RM** je Satz = **Epley**: `Gewicht × (1 + Reps/30)`. Wird als Info angezeigt,
-  ist aber **kein** PR-Auslöser.
+- **Effektives Gewicht eines Satzes:** bei Gewicht×Reps = das eingegebene Gewicht; bei
+  Körpergewichts-Übungen = **getracktes Körpergewicht + optionales Zusatzgewicht** (nutzt das
+  bestehende Gewichts-Tracking → echte Verknüpfung beider App-Welten). **Fallback**, wenn kein
+  Körpergewicht erfasst ist: zuletzt bekanntes Körpergewicht verwenden; ist gar keins vorhanden,
+  einmalig danach fragen bzw. nur das Zusatzgewicht werten. Das effektive Gewicht ist die Basis für
+  Volumen, 1RM und PR.
+- **Volumen** je Übung/Session = Σ (effektives Gewicht × Reps). **Warm-up-Sätze zählen nicht ins
+  Volumen.**
+- **Geschätztes 1RM** je Satz = **Epley**: `effektives Gewicht × (1 + Reps/30)`. Wird als Info
+  angezeigt, ist aber **kein** PR-Auslöser.
 
 ### 3.5 Persönliche Rekorde (PRs) ✅ entschieden
-- **PR = neues Höchstgewicht pro Übung** (über alle Nicht-Warm-up-Sätze). Ein neuer PR löst ein
-  visuelles Highlight (Pokal-Badge im monochromen Stil) aus — live in der Session **und** in der
-  Historie/Auswertung markiert. Volumen- und 1RM-Rekorde sind bewusst **nicht** Teil von v1
-  (später additiv ergänzbar).
+- **PR = neues höchstes effektives Gewicht pro Übung** (über alle Nicht-Warm-up-Sätze). Ein neuer
+  PR löst ein visuelles Highlight (Pokal-Badge im monochromen Stil) aus — live in der Session
+  **und** in der Historie/Auswertung markiert. Volumen- und 1RM-Rekorde sind bewusst **nicht** Teil
+  von v1 (später additiv ergänzbar).
 
 ### 3.6 Historie ✅ entschieden
 - **Monatskalender** mit Markierung an Trainingstagen (Punkt/Akzent). Tippen auf einen Tag zeigt
@@ -134,6 +145,13 @@ Alltag selten gebraucht, und wandert in einen Einstellungs-/Profil-Hub.
 
 > **Offen:** Welche Übungen/Metriken standardmäßig? Übungsauswahl für den Kraft-Chart? (§10)
 
+### 3.8 Übungs-Detailansicht ✅ entschieden (in v1)
+- Eigener Screen **pro Übung**, erreichbar aus dem Übungskatalog und aus Session/Historie.
+- Zeigt: den kompletten **Satz-Verlauf** dieser Übung (chronologisch über alle Sessions), das
+  aktuelle **Max-Gewicht-PR** und einen kleinen **Kraftverlauf** (Mini-Chart, reuse der
+  Chart-Bausteine aus §3.7). Macht die gesammelten Daten pro Übung erst wirklich nutzbar.
+- Ink-&-Paper-Stil; Aggregationslogik Android-frei und unit-testbar.
+
 ---
 
 ## 4. Ernährung ↔ Training Korrelation (Ausblick) ✅ Phase entschieden
@@ -145,11 +163,16 @@ in §9). Konkrete Korrelationen werden zu Beginn dieser Phase spezifiziert.
 
 ## 5. Datenmodell (Entwurf, wird verfeinert)
 Neue Room-Entities (Arbeitsstand, Android-frei gespiegelt in `domain/model`):
-- `Exercise` — Übungsdefinition (Katalog + Custom).
-- `WorkoutTemplate` + `TemplateExercise` — Vorlage und ihre Übungen (geordnet).
-- `WorkoutSession` — absolvierte/aktive Einheit (Datum, Dauer, Notiz).
-- `SessionExercise` + `SetEntry` — Übungen einer Session und ihre Sätze (Gewicht, Reps, Typ,
-  abgehakt).
+- `Exercise` — Übungsdefinition (Katalog + Custom). **Stabiler String-Schlüssel** (`stableId`):
+  Katalog-Übungen übernehmen die stabile `id` aus free-exercise-db, Custom-Übungen bekommen eine
+  generierte UUID. Alle Verweise (Vorlagen, Sessions, Backup) referenzieren diesen Schlüssel, **nie**
+  die Auto-Increment-Zeilen-ID → geräteübergreifender Import bleibt konsistent. Weitere Felder:
+  `type: ExerciseType`, `isCustom`, optional `restSeconds`.
+- `WorkoutTemplate` + `TemplateExercise` — Vorlage und ihre Übungen (geordnet, mit Ziel-Satzanzahl).
+- `WorkoutSession` — Einheit mit **Status** (`isActive`/abgeschlossen), Datum, Start/Ende/Dauer,
+  Notiz. Höchstens eine aktive Session gleichzeitig; wird fortlaufend gespeichert (§3.3).
+- `SessionExercise` (mit nullable `supersetGroupId` für spätere Supersätze) + `SetEntry` (Gewicht,
+  Reps, `SetType`, abgehakt).
 
 > **Offen:** finale Felder nach Klärung der offenen Fragen. DB-Version steigt (aktuell 7 → 8+),
 > reine additive Migrationen mit Defaults.
@@ -178,29 +201,43 @@ Alle in §1.1 genannten Regeln gelten. Neue, trainings-spezifische UI leitet sic
 ## 8. Datenportabilität & Rückwärtskompatibilität (Pflicht)
 Erweiterung des bestehenden CSV/ZIP-Backups (siehe `CLAUDE.md` → „Backup schema evolution"):
 - Neue Datentypen = neue `*CsvFormat`-Objekte + eigene ZIP-Einträge (z. B. `exercises.csv`,
-  `workout_templates.csv`, `workout_sessions.csv`, `set_entries.csv`).
+  `workout_templates.csv`, `template_exercises.csv`, `workout_sessions.csv`, `session_exercises.csv`,
+  `set_entries.csv`).
+- **Relationale Integrität über stabile Schlüssel (kritisch).** Trainingsdaten sind relational
+  (Session → Übung → Sätze; Vorlagen/Sessions → Übungen). Alle Fremdverweise in den CSVs laufen über
+  **stabile String-Schlüssel** (Übungs-`stableId` aus §5, plus stabile Schlüssel für Sessions/
+  Vorlagen), **nicht** über Auto-Increment-IDs. Beim Import werden Zeilen anhand dieser Schlüssel
+  neu verknüpft (Remap), sodass ein Backup auch auf einem **frisch installierten** Gerät mit anders
+  vergebenen IDs korrekt zusammengesetzt wird. Referenzierte, aber fehlende Custom-Übungen werden
+  beim Import mit-angelegt.
 - `detectCsvType` + Import-Dispatch um die neuen Typen erweitern.
 - **Namensbasiertes Parsen** beibehalten → alte Backups ohne Trainingsdaten importieren weiter
   fehlerfrei (fehlende ZIP-Einträge = keine Trainingsdaten, kein Fehler).
 - Export enthält immer alle vorhandenen Datentypen; fehlende Sektionen werden beim Import
   toleriert.
-- End-to-End-Unit-Tests inkl. Legacy-Backups (wie `BackupImporterTest`).
+- End-to-End-Unit-Tests inkl. Legacy-Backups (wie `BackupImporterTest`) **und** ein Round-Trip-Test,
+  der Import auf ein „frisches" (leeres, anders geseedetes) Repository-Set nachstellt und die
+  Verknüpfungen prüft.
 
 ---
 
 ## 9. Phasierung (grob, wird in Dokument 2 zu Prompts)
-Reihenfolge so, dass nach jedem Schritt etwas Lauffähiges/Testbares entsteht. Feinschnitt erfolgt,
-sobald die offenen Fragen geklärt sind. Grobe Blöcke:
+Reihenfolge so, dass nach jedem Schritt etwas Lauffähiges/Testbares entsteht. Entspricht 1:1 der
+Prompt-Kette (13 Schritte):
 1. Navigations-Umbau (4 Tabs, Ziele→Einstellungen, Daten-Sektion verschieben).
-2. Trainings-Datenmodell + Repositories + Room-Migration + Fakes/Tests.
-3. Übungs-Datenbank (Import/Bundle + Custom-Übungen).
+2. Trainings-Datenmodell + Repositories + Room-Migration + Fakes/Tests (inkl. Session-Status &
+   stabile Übungs-Schlüssel).
+3. Übungs-Datenbank (Snapshot-Seeding + Custom-Übungen).
 4. Vorlagen-Verwaltung.
-5. Live-Session (Eingabe, Satz-Typen, Inline-Historie, Timer).
-6. Berechnungen (Volumen, 1RM) + PRs.
-7. Historie/Kalender + Editieren.
-8. Statistik-Charts (Kraft, Frequenz).
-9. Backup-Erweiterung + Kompatibilitätstests.
-10. (Optional/spätere Phase) Korrelations-Insights.
+5. Live-Session (Eingabe, Sätze löschen/umordnen, **fortlaufende Persistenz & Wiederaufnahme**).
+6. Satz-Typen + Inline-Historie.
+7. Ruhe-Timer.
+8. Berechnungen (Volumen, 1RM inkl. Körpergewichts-Logik) + PRs.
+9. Historie/Kalender + Editieren.
+10. Statistik-Charts (Kraft, Frequenz).
+11. Übungs-Detailansicht.
+12. Backup-Erweiterung + Kompatibilitätstests.
+13. (Spätere Phase) Korrelations-Insights.
 
 ---
 
@@ -222,8 +259,29 @@ Nummeriert; werden nach Klärung in die jeweiligen Abschnitte eingearbeitet und 
 - [x] **F10 — Namen/Icons:** ✅ „Einstellungen"; Training=`FitnessCenter`, Einstellungen=`Settings`.
 - [x] **F11 — Einheiten:** ✅ kg-only.
 - [x] **F12 — Übungsbilder:** ✅ v1 ohne Bilder (Text-Katalog); später nachrüstbar.
+- [x] **F13 — Übungs-Detailansicht:** ✅ in v1 (§3.8).
+- [x] **F14 — Körpergewichts-Übungen & Volumen/1RM:** ✅ getracktes Körpergewicht + Zusatz mit
+  Fallback (§3.4).
+
+**Aus dem Review nachgezogene fundamentale Punkte** (waren in v0.2 lückenhaft):
+- Aktive Session wird fortlaufend persistiert und ist wiederaufnehmbar (§3.3, §5).
+- Backup referenziert über stabile Schlüssel + Remap für geräteübergreifenden Import (§5, §8).
+- Sätze in der Session löschen/umordnen (§3.3).
 
 **Alle offenen Fragen geklärt → Spec bereit für die Prompt-Kette (Schritt 2).**
+
+---
+
+## 11. Bewusst nicht in v1 (dokumentierte Grenze, kein Versehen)
+Additiv später möglich, blockiert das MVP nicht:
+- **Supersätze** (Modell hält `supersetGroupId` bereit).
+- **Übungsbilder/-animationen** (F12).
+- **Hantelscheiben-Rechner**, **Aufwärm-Satz-Rechner**.
+- **Körpermaße** (Arme/Brust/…): aktuell nur Körpergewicht.
+- **RPE/RIR** pro Satz; Notizen pro Satz/Übung (nur Session-Notiz in v1).
+- **Volumen-/1RM-Rekorde** als PR-Typen (v1 nur Max-Gewicht).
+- **Health-/Fit-Sync**, Cloud-Sync (Portabilität läuft über das Backup).
+- **Zeit-/Cardio-Übungstypen** (Modell additiv erweiterbar).
 
 ---
 
@@ -232,3 +290,7 @@ Nummeriert; werden nach Klärung in die jeweiligen Abschnitte eingearbeitet und 
 - **v0.2** — Fragerunden 1 & 2 eingearbeitet; F1–F12 geklärt (Übungs-DB, Übungstypen, Vorlagen,
   Korrelation-Phase, PRs, Timer, Supersätze, 1RM, Historie, Icons/Namen, Einheiten, Bilder). Spec
   vollständig für die Prompt-Kette.
+- **v0.3** — Kritisches Review: fundamentale Lücken geschlossen (fortlaufende Session-Persistenz &
+  Wiederaufnahme, relationale Backup-Integrität über stabile Schlüssel, Sätze löschen/umordnen).
+  F13 (Übungs-Detailansicht in v1) und F14 (Körpergewicht → effektives Gewicht) geklärt. §11
+  „Bewusst nicht in v1" ergänzt. Phasierung auf 13 Schritte gebracht.
