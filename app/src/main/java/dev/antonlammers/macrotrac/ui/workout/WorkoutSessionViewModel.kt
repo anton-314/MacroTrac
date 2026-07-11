@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.antonlammers.macrotrac.domain.InlineHistory
 import dev.antonlammers.macrotrac.domain.RestTimer
 import dev.antonlammers.macrotrac.domain.SetPerformance
+import dev.antonlammers.macrotrac.domain.WorkoutMetrics
 import dev.antonlammers.macrotrac.domain.model.Exercise
 import dev.antonlammers.macrotrac.domain.model.ExerciseType
 import dev.antonlammers.macrotrac.domain.model.SessionExercise
@@ -14,6 +15,7 @@ import dev.antonlammers.macrotrac.domain.model.SetEntry
 import dev.antonlammers.macrotrac.domain.model.SetType
 import dev.antonlammers.macrotrac.domain.model.WorkoutSession
 import dev.antonlammers.macrotrac.domain.repository.ExerciseCatalogRepository
+import dev.antonlammers.macrotrac.domain.repository.WeightRepository
 import dev.antonlammers.macrotrac.domain.repository.WorkoutSessionRepository
 import dev.antonlammers.macrotrac.domain.repository.WorkoutTemplateRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -54,11 +56,17 @@ data class SessionExerciseUi(
     val lastPerformance: List<SetPerformance> = emptyList(),
     /** Rest duration in seconds for this exercise (per-exercise override, or the global default). */
     val restSeconds: Int = RestTimer.DEFAULT_REST_SECONDS,
+    /** Σ (effective weight × reps) over the non-warm-up sets so far (spec §3.4). */
+    val volumeKg: Double = 0.0,
+    /** Highest Epley estimated 1RM over the performed sets, or null if nothing has been logged. */
+    val estimatedOneRepMaxKg: Double? = null,
 )
 
 data class WorkoutSessionUiState(
     val loading: Boolean = true,
     val exercises: List<SessionExerciseUi> = emptyList(),
+    /** Body weight applied to bodyweight-exercise calculations (resolved for the session date). */
+    val bodyWeightKg: Double? = null,
 )
 
 /** The running rest timer as the screen renders it. */
@@ -93,6 +101,7 @@ class WorkoutSessionViewModel(
     private val sessions: WorkoutSessionRepository,
     private val templates: WorkoutTemplateRepository,
     private val catalog: ExerciseCatalogRepository,
+    private val weight: WeightRepository,
     private val templateId: Long,
     private val clock: () -> Long,
 ) : ViewModel() {
@@ -102,16 +111,21 @@ class WorkoutSessionViewModel(
         sessions: WorkoutSessionRepository,
         templates: WorkoutTemplateRepository,
         catalog: ExerciseCatalogRepository,
+        weight: WeightRepository,
         savedStateHandle: SavedStateHandle,
     ) : this(
         sessions,
         templates,
         catalog,
+        weight,
         savedStateHandle.get<Long>("templateId") ?: 0L,
         { System.currentTimeMillis() },
     )
 
     private val _session = MutableStateFlow<WorkoutSession?>(null)
+
+    // Resolved body weight for the session date, feeding bodyweight-exercise volume/1RM (spec §3.4).
+    private val _bodyWeightKg = MutableStateFlow<Double?>(null)
 
     private val _finished = MutableStateFlow(false)
     /** Flips to true once the session is finished or discarded, signalling the screen to pop back. */
@@ -167,23 +181,28 @@ class WorkoutSessionViewModel(
         _session,
         catalog.exercises(),
         sessions.sessions(),
-    ) { session, catalogExercises, history ->
+        _bodyWeightKg,
+    ) { session, catalogExercises, history, bodyWeightKg ->
         if (session == null) {
             WorkoutSessionUiState(loading = true)
         } else {
             val byStableId = catalogExercises.associateBy { it.stableId }
             WorkoutSessionUiState(
                 loading = false,
+                bodyWeightKg = bodyWeightKg,
                 exercises = session.exercises.map { se ->
                     val exercise = byStableId[se.exerciseStableId]
+                    val type = exercise?.type ?: ExerciseType.WEIGHT_REPS
                     SessionExerciseUi(
                         id = se.id,
                         exerciseStableId = se.exerciseStableId,
                         name = exercise?.name ?: se.exerciseStableId,
-                        type = exercise?.type ?: ExerciseType.WEIGHT_REPS,
+                        type = type,
                         sets = se.sets,
                         lastPerformance = InlineHistory.lastPerformance(history, se.exerciseStableId),
                         restSeconds = exercise?.restSeconds ?: RestTimer.DEFAULT_REST_SECONDS,
+                        volumeKg = WorkoutMetrics.volumeKg(se.sets, type, bodyWeightKg),
+                        estimatedOneRepMaxKg = WorkoutMetrics.bestEstimatedOneRepMaxKg(se.sets, type, bodyWeightKg),
                     )
                 },
             )
@@ -208,6 +227,9 @@ class WorkoutSessionViewModel(
     fun onPickerQueryChange(query: String) = _pickerQuery.update { query }
 
     init {
+        viewModelScope.launch {
+            _bodyWeightKg.value = WorkoutMetrics.resolveBodyWeightKg(weight.allEntries(), today())
+        }
         viewModelScope.launch {
             val active = sessions.activeSession().first()
             if (active != null) {

@@ -276,6 +276,24 @@ private fun ExerciseCard(
             Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
             Text("Satz hinzufügen", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 8.dp))
         }
+
+        // Volume + estimated 1RM summary — only once at least one work set has been logged (spec §3.4).
+        if (exercise.volumeKg > 0.0 || exercise.estimatedOneRepMaxKg != null) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+                MetricStat("VOLUMEN", "${formatKg(exercise.volumeKg)} kg")
+                exercise.estimatedOneRepMaxKg?.let { MetricStat("E1RM", "${formatKg(it)} kg") }
+            }
+        }
+    }
+}
+
+/** A compact mono-caption + serif-value stat pair, matching the Ink & Paper summary language. */
+@Composable
+private fun MetricStat(label: String, value: String) {
+    Column {
+        Caption(label)
+        Text(value, style = MaterialTheme.typography.titleMedium)
     }
 }
 
@@ -517,6 +535,12 @@ private val REST_PRESETS = listOf(30, 60, 90, 120, 150, 180, 240)
 private fun formatMmSs(totalSeconds: Int): String {
     val safe = totalSeconds.coerceAtLeast(0)
     return "%d:%02d".format(safe / 60, safe % 60)
+}
+
+/** Formats a kg value: whole numbers without decimals, otherwise rounded to one decimal. */
+private fun formatKg(value: Double): String {
+    val rounded = kotlin.math.round(value * 10.0) / 10.0
+    return if (rounded % 1.0 == 0.0) rounded.toInt().toString() else "%.1f".format(rounded)
 }
 
 private fun parseWeight(text: String): Double = text.replace(',', '.').toDoubleOrNull() ?: 0.0

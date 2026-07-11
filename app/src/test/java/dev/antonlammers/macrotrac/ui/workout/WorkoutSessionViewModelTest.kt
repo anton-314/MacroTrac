@@ -10,7 +10,9 @@ import dev.antonlammers.macrotrac.domain.model.SetType
 import dev.antonlammers.macrotrac.domain.model.TemplateExercise
 import dev.antonlammers.macrotrac.domain.model.WorkoutSession
 import dev.antonlammers.macrotrac.domain.model.WorkoutTemplate
+import dev.antonlammers.macrotrac.domain.model.WeightEntry
 import dev.antonlammers.macrotrac.fake.FakeExerciseCatalogRepository
+import dev.antonlammers.macrotrac.fake.FakeWeightRepository
 import dev.antonlammers.macrotrac.fake.FakeWorkoutSessionRepository
 import dev.antonlammers.macrotrac.fake.FakeWorkoutTemplateRepository
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +42,7 @@ class WorkoutSessionViewModelTest {
     private lateinit var sessions: FakeWorkoutSessionRepository
     private lateinit var templates: FakeWorkoutTemplateRepository
     private lateinit var catalog: FakeExerciseCatalogRepository
+    private lateinit var weight: FakeWeightRepository
 
     @Before
     fun setup() {
@@ -47,6 +50,7 @@ class WorkoutSessionViewModelTest {
         sessions = FakeWorkoutSessionRepository()
         templates = FakeWorkoutTemplateRepository()
         catalog = FakeExerciseCatalogRepository()
+        weight = FakeWeightRepository()
     }
 
     @After
@@ -60,7 +64,7 @@ class WorkoutSessionViewModelTest {
         Exercise(stableId = id, name = name, type = type, isCustom = false)
 
     private fun viewModel(templateId: Long = 0L) =
-        WorkoutSessionViewModel(sessions, templates, catalog, templateId) { FIXED_CLOCK }
+        WorkoutSessionViewModel(sessions, templates, catalog, weight, templateId) { FIXED_CLOCK }
 
     // --- start ---
 
@@ -249,6 +253,49 @@ class WorkoutSessionViewModelTest {
             listOf(SetPerformance(80.0, 8), SetPerformance(82.5, 6)),
             vm.uiState.value.exercises.single().lastPerformance,
         )
+    }
+
+    // --- calculations (volume / 1RM) ---
+
+    @Test
+    fun `volume and estimated 1RM surface per exercise in the ui state`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+        vm.addExercise(exercise("bench", "Bench Press"))
+        advanceUntilIdle()
+
+        vm.setWeight(0, 0, 100.0)
+        vm.setReps(0, 0, 5)
+        vm.addSet(0)
+        vm.setSetType(0, 1, SetType.WARMUP) // excluded from volume
+        vm.setWeight(0, 1, 60.0)
+        vm.setReps(0, 1, 10)
+        advanceUntilIdle()
+
+        val ex = vm.uiState.value.exercises.single()
+        assertEquals(500.0, ex.volumeKg, 0.0) // only the 100×5 work set
+        assertEquals(116.667, ex.estimatedOneRepMaxKg!!, 0.001) // 100 × (1 + 5/30)
+    }
+
+    @Test
+    fun `bodyweight exercise volume uses the last known body weight`() = runTest {
+        weight.save(WeightEntry(weightKg = 80.0, date = java.time.LocalDate.now(), timestampMs = 1L))
+        catalog.upsertAll(listOf(exercise("pullup", "Pull Up", ExerciseType.BODYWEIGHT)))
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+        vm.addExercise(exercise("pullup", "Pull Up", ExerciseType.BODYWEIGHT))
+        advanceUntilIdle()
+
+        vm.setWeight(0, 0, 10.0) // added weight
+        vm.setReps(0, 0, 8)
+        advanceUntilIdle()
+
+        // (80 body weight + 10 added) × 8 reps
+        assertEquals(720.0, vm.uiState.value.exercises.single().volumeKg, 0.0)
+        assertEquals(80.0, vm.uiState.value.bodyWeightKg!!, 0.0)
     }
 
     // --- rest timer ---
