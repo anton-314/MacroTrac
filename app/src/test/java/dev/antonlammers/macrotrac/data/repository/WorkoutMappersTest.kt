@@ -146,6 +146,27 @@ class WorkoutMappersTest {
     }
 
     @Test
+    fun `session round-trips a persisted rest-timer anchor`() {
+        val session = WorkoutSession(
+            id = 7, stableId = "sess", date = LocalDate.of(2026, 7, 10), isActive = true,
+            startedAtMs = 1_000,
+            restExerciseStableId = "bench", restTotalSeconds = 180, restEndAtMs = 181_000, restPausedRemainingMs = 45_000,
+        )
+        val entity = session.toEntity()
+        assertEquals("bench", entity.restExerciseStableId)
+        assertEquals(180, entity.restTotalSeconds)
+        assertEquals(181_000L, entity.restEndAtMs)
+        assertEquals(45_000L, entity.restPausedRemainingMs)
+
+        val relation = SessionWithExercises(session = entity, exercises = emptyList())
+        val back = relation.toDomain()
+        assertEquals("bench", back.restExerciseStableId)
+        assertEquals(180, back.restTotalSeconds)
+        assertEquals(181_000L, back.restEndAtMs)
+        assertEquals(45_000L, back.restPausedRemainingMs)
+    }
+
+    @Test
     fun `active session maps with null ended and note`() {
         val relation = SessionWithExercises(
             session = WorkoutSessionEntity(

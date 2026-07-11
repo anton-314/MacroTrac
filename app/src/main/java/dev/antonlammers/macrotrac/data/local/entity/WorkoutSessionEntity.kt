@@ -21,4 +21,8 @@ data class WorkoutSessionEntity(
     val startedAtMs: Long,
     val endedAtMs: Long?,
     val note: String?,
+    val restExerciseStableId: String? = null,
+    val restTotalSeconds: Int? = null,
+    val restEndAtMs: Long? = null,
+    val restPausedRemainingMs: Long? = null,
 )

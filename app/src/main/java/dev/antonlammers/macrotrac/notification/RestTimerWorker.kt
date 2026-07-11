@@ -14,7 +14,7 @@ class RestTimerWorker(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        RestTimerNotifier.show(applicationContext)
+        RestTimerNotifier.showExpired(applicationContext)
         return Result.success()
     }
 }

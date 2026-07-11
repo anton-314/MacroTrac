@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.ExperimentalGetImage
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
+import dev.antonlammers.macrotrac.notification.RestTimerNotifier
 import dev.antonlammers.macrotrac.ui.navigation.AppNavigation
 import dev.antonlammers.macrotrac.ui.theme.MacroTracTheme
 
@@ -24,10 +25,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         requestNotificationPermissionIfNeeded()
+        val openWorkoutSession = intent.getBooleanExtra(RestTimerNotifier.EXTRA_OPEN_WORKOUT_SESSION, false)
         @OptIn(ExperimentalGetImage::class)
         setContent {
             MacroTracTheme {
-                AppNavigation()
+                AppNavigation(openWorkoutSession = openWorkoutSession)
             }
         }
     }

@@ -99,6 +99,10 @@ internal object WorkoutMappers {
         endedAtMs = session.endedAtMs,
         note = session.note,
         exercises = exercises.sortedBy { it.sessionExercise.position }.map { it.toDomain() },
+        restExerciseStableId = session.restExerciseStableId,
+        restTotalSeconds = session.restTotalSeconds,
+        restEndAtMs = session.restEndAtMs,
+        restPausedRemainingMs = session.restPausedRemainingMs,
     )
 
     private fun SessionExerciseWithSets.toDomain(): SessionExercise = SessionExercise(
@@ -126,6 +130,10 @@ internal object WorkoutMappers {
         startedAtMs = startedAtMs,
         endedAtMs = endedAtMs,
         note = note,
+        restExerciseStableId = restExerciseStableId,
+        restTotalSeconds = restTotalSeconds,
+        restEndAtMs = restEndAtMs,
+        restPausedRemainingMs = restPausedRemainingMs,
     )
 
     fun SessionExercise.toEntity(sessionId: Long, position: Int): SessionExerciseEntity =

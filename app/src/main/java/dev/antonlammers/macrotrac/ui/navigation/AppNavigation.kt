@@ -19,6 +19,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -85,10 +86,19 @@ private val bottomNavItems = listOf(
 
 @ExperimentalGetImage
 @Composable
-fun AppNavigation(navController: NavHostController = rememberNavController()) {
+fun AppNavigation(
+    navController: NavHostController = rememberNavController(),
+    openWorkoutSession: Boolean = false,
+) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val showBottomNav = bottomNavItems.any { it.screen.route == currentRoute }
+
+    // Tapping a rest-timer notification relaunches the app with this flag set — jump straight
+    // into the live session (which resumes the active one regardless of the templateId argument).
+    LaunchedEffect(openWorkoutSession) {
+        if (openWorkoutSession) navController.navigate(Screen.WorkoutSession.start(0))
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         NavHost(

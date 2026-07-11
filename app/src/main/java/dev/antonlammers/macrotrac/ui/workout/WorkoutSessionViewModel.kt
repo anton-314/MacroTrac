@@ -78,11 +78,19 @@ data class RestTimerUiState(
 )
 
 /** VM-side wrapper pairing the pure [RestTimer] with the exercise it belongs to (for the label). */
-private data class ActiveRest(val exerciseName: String, val timer: RestTimer)
+private data class ActiveRest(val exerciseStableId: String, val exerciseName: String, val timer: RestTimer)
 
-/** One-shot command the screen turns into a WorkManager schedule/cancel (keeps the VM Android-free). */
+/**
+ * One-shot command the screen turns into WorkManager scheduling + the Android notification (keeps
+ * the VM Android-free). [Start] covers both starting and resuming a running countdown: the screen
+ * (re)schedules the alerting "rest over" notification for [delayMs] from now and shows/updates the
+ * ongoing "still resting" notification counting down to [endAtMs]. [Pause] freezes both: the pending
+ * alert is cancelled and the ongoing notification switches to a static "paused" display. [Cancel]
+ * stops everything (skip/finish/discard) — cancels the pending alert and dismisses the notification.
+ */
 sealed interface RestCommand {
-    data class Schedule(val delayMs: Long) : RestCommand
+    data class Start(val exerciseName: String, val totalSeconds: Int, val delayMs: Long, val endAtMs: Long) : RestCommand
+    data class Pause(val exerciseName: String, val remainingSeconds: Int) : RestCommand
     data object Cancel : RestCommand
 }
 
@@ -157,6 +165,7 @@ class WorkoutSessionViewModel(
                     delay(TICK_MS)
                 }
                 _rest.value = null
+                persistRest(null, null)
             }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -234,6 +243,7 @@ class WorkoutSessionViewModel(
             val active = sessions.activeSession().first()
             if (active != null) {
                 _session.value = active
+                restoreRestTimer(active)
             } else {
                 _session.value = if (templateId != 0L) buildFromTemplate(templateId) else buildEmpty()
                 persist()
@@ -334,16 +344,20 @@ class WorkoutSessionViewModel(
             val exercise = catalog.exercise(exerciseStableId).first()
             val seconds = exercise?.restSeconds ?: RestTimer.DEFAULT_REST_SECONDS
             val timer = RestTimer.start(clock(), seconds)
-            _rest.value = ActiveRest(exercise?.name ?: exerciseStableId, timer)
-            restCommandChannel.send(RestCommand.Schedule(timer.remainingMs(clock())))
+            val name = exercise?.name ?: exerciseStableId
+            _rest.value = ActiveRest(exerciseStableId, name, timer)
+            persistRest(exerciseStableId, timer)
+            restCommandChannel.send(startCommand(name, timer))
         }
     }
 
     fun pauseRest() {
         val active = _rest.value ?: return
         if (active.timer.isPaused) return
-        _rest.value = active.copy(timer = active.timer.paused(clock()))
-        restCommandChannel.trySend(RestCommand.Cancel)
+        val paused = active.timer.paused(clock())
+        _rest.value = active.copy(timer = paused)
+        persistRest(active.exerciseStableId, paused)
+        restCommandChannel.trySend(RestCommand.Pause(active.exerciseName, remainingSeconds(paused)))
     }
 
     fun resumeRest() {
@@ -351,7 +365,8 @@ class WorkoutSessionViewModel(
         if (!active.timer.isPaused) return
         val resumed = active.timer.resumed(clock())
         _rest.value = active.copy(timer = resumed)
-        restCommandChannel.trySend(RestCommand.Schedule(resumed.remainingMs(clock())))
+        persistRest(active.exerciseStableId, resumed)
+        restCommandChannel.trySend(startCommand(active.exerciseName, resumed))
     }
 
     /** Add/subtract rest time on the running (or paused) countdown, e.g. ±15 s. */
@@ -359,8 +374,13 @@ class WorkoutSessionViewModel(
         val active = _rest.value ?: return
         val adjusted = active.timer.adjusted(clock(), deltaSeconds)
         _rest.value = active.copy(timer = adjusted)
-        // Only running timers have pending work to reschedule; a paused one reschedules on resume.
-        if (!adjusted.isPaused) restCommandChannel.trySend(RestCommand.Schedule(adjusted.remainingMs(clock())))
+        persistRest(active.exerciseStableId, adjusted)
+        val command = if (adjusted.isPaused) {
+            RestCommand.Pause(active.exerciseName, remainingSeconds(adjusted))
+        } else {
+            startCommand(active.exerciseName, adjusted)
+        }
+        restCommandChannel.trySend(command)
     }
 
     fun skipRest() = cancelRest()
@@ -368,7 +388,47 @@ class WorkoutSessionViewModel(
     private fun cancelRest() {
         if (_rest.value == null) return
         _rest.value = null
+        persistRest(null, null)
         restCommandChannel.trySend(RestCommand.Cancel)
+    }
+
+    private fun startCommand(exerciseName: String, timer: RestTimer) = RestCommand.Start(
+        exerciseName = exerciseName,
+        totalSeconds = timer.totalSeconds,
+        delayMs = timer.remainingMs(clock()),
+        endAtMs = timer.endAtMs,
+    )
+
+    private fun remainingSeconds(timer: RestTimer) = ceil(timer.remainingMs(clock()) / 1000.0).toInt()
+
+    /** Persists the rest-timer anchor onto the session so it survives leaving/resuming (spec addendum). */
+    private fun persistRest(exerciseStableId: String?, timer: RestTimer?) = mutate { session ->
+        session.copy(
+            restExerciseStableId = exerciseStableId,
+            restTotalSeconds = timer?.totalSeconds,
+            restEndAtMs = timer?.endAtMs,
+            restPausedRemainingMs = timer?.pausedRemainingMs,
+        )
+    }
+
+    /**
+     * Reconstructs [_rest] from a resumed session's persisted anchor. If the countdown already ran
+     * out while the screen was away, the anchor is simply cleared — the background notification (if
+     * any) already fired or is about to, independent of this VM instance.
+     */
+    private fun restoreRestTimer(session: WorkoutSession) {
+        val exerciseStableId = session.restExerciseStableId ?: return
+        val totalSeconds = session.restTotalSeconds ?: return
+        val endAtMs = session.restEndAtMs ?: return
+        val timer = RestTimer(totalSeconds, endAtMs, session.restPausedRemainingMs)
+        if (!timer.isPaused && timer.isFinished(clock())) {
+            persistRest(null, null)
+            return
+        }
+        viewModelScope.launch {
+            val exercise = catalog.exercise(exerciseStableId).first()
+            _rest.value = ActiveRest(exerciseStableId, exercise?.name ?: exerciseStableId, timer)
+        }
     }
 
     /** Persist a per-exercise rest override (spec §3.3 — stored on the exercise via [restSeconds]). */

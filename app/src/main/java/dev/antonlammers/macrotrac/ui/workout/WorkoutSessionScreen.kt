@@ -61,6 +61,7 @@ import androidx.navigation.NavController
 import dev.antonlammers.macrotrac.domain.model.ExerciseType
 import dev.antonlammers.macrotrac.domain.model.SetEntry
 import dev.antonlammers.macrotrac.domain.model.SetType
+import dev.antonlammers.macrotrac.notification.RestTimerNotifier
 import dev.antonlammers.macrotrac.notification.RestTimerScheduler
 import dev.antonlammers.macrotrac.ui.components.NumericTextField
 import dev.antonlammers.macrotrac.ui.navigation.Screen
@@ -93,8 +94,18 @@ fun WorkoutSessionScreen(
     LaunchedEffect(Unit) {
         viewModel.restCommands.collect { command ->
             when (command) {
-                is RestCommand.Schedule -> RestTimerScheduler.schedule(context, command.delayMs)
-                RestCommand.Cancel -> RestTimerScheduler.cancel(context)
+                is RestCommand.Start -> {
+                    RestTimerScheduler.schedule(context, command.delayMs)
+                    RestTimerNotifier.showOngoing(context, command.exerciseName, command.endAtMs)
+                }
+                is RestCommand.Pause -> {
+                    RestTimerScheduler.cancel(context)
+                    RestTimerNotifier.showPaused(context, command.exerciseName, command.remainingSeconds)
+                }
+                RestCommand.Cancel -> {
+                    RestTimerScheduler.cancel(context)
+                    RestTimerNotifier.cancel(context)
+                }
             }
         }
     }

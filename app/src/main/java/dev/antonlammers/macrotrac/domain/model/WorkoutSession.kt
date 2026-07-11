@@ -16,6 +16,16 @@ data class WorkoutSession(
     val endedAtMs: Long? = null,
     val note: String? = null,
     val exercises: List<SessionExercise> = emptyList(),
+    /**
+     * Anchor of an in-progress rest timer, persisted so it survives leaving and resuming the
+     * session (all null when no rest is running). [restEndAtMs]/[restPausedRemainingMs] mirror
+     * [dev.antonlammers.macrotrac.domain.RestTimer]'s own fields; [restEndAtMs] is kept even while
+     * paused (ignored until resumed).
+     */
+    val restExerciseStableId: String? = null,
+    val restTotalSeconds: Int? = null,
+    val restEndAtMs: Long? = null,
+    val restPausedRemainingMs: Long? = null,
 ) {
     /** Elapsed time once finished; null while the session is still active. */
     val durationMs: Long? get() = endedAtMs?.let { it - startedAtMs }

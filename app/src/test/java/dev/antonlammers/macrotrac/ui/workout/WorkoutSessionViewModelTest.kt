@@ -314,7 +314,7 @@ class WorkoutSessionViewModelTest {
         vm.startedWithOneExercise(this)
         vm.restCommands.test {
             vm.toggleSetCompleted(0, 0)
-            assertEquals(RestCommand.Schedule(90_000), awaitItem())
+            assertEquals(RestCommand.Start("bench", 180, 180_000, FIXED_CLOCK + 180_000), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -326,22 +326,22 @@ class WorkoutSessionViewModelTest {
         vm.startedWithOneExercise(this)
         vm.restCommands.test {
             vm.toggleSetCompleted(0, 0)
-            assertEquals(RestCommand.Schedule(120_000), awaitItem())
+            assertEquals(RestCommand.Start("Bench Press", 120, 120_000, FIXED_CLOCK + 120_000), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `pause cancels and resume reschedules the remaining time`() = runTest {
+    fun `pause cancels the pending alert and shows a paused notification, resume reschedules`() = runTest {
         val vm = viewModel()
         vm.startedWithOneExercise(this)
         vm.restCommands.test {
             vm.toggleSetCompleted(0, 0)
-            assertEquals(RestCommand.Schedule(90_000), awaitItem())
+            assertEquals(RestCommand.Start("bench", 180, 180_000, FIXED_CLOCK + 180_000), awaitItem())
             vm.pauseRest()
-            assertEquals(RestCommand.Cancel, awaitItem())
+            assertEquals(RestCommand.Pause("bench", 180), awaitItem())
             vm.resumeRest()
-            assertEquals(RestCommand.Schedule(90_000), awaitItem())
+            assertEquals(RestCommand.Start("bench", 180, 180_000, FIXED_CLOCK + 180_000), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -352,9 +352,9 @@ class WorkoutSessionViewModelTest {
         vm.startedWithOneExercise(this)
         vm.restCommands.test {
             vm.toggleSetCompleted(0, 0)
-            assertEquals(RestCommand.Schedule(90_000), awaitItem())
+            assertEquals(RestCommand.Start("bench", 180, 180_000, FIXED_CLOCK + 180_000), awaitItem())
             vm.adjustRest(15)
-            assertEquals(RestCommand.Schedule(105_000), awaitItem())
+            assertEquals(RestCommand.Start("bench", 195, 195_000, FIXED_CLOCK + 195_000), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -365,11 +365,73 @@ class WorkoutSessionViewModelTest {
         vm.startedWithOneExercise(this)
         vm.restCommands.test {
             vm.toggleSetCompleted(0, 0)
-            assertEquals(RestCommand.Schedule(90_000), awaitItem())
+            assertEquals(RestCommand.Start("bench", 180, 180_000, FIXED_CLOCK + 180_000), awaitItem())
             vm.skipRest()
             assertEquals(RestCommand.Cancel, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    // --- rest timer survives leaving/resuming the session (persisted anchor) ---
+
+    @Test
+    fun `resuming an active session restores a paused rest timer from its persisted anchor`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        sessions.save(
+            WorkoutSession(
+                stableId = "running",
+                date = java.time.LocalDate.now(),
+                isActive = true,
+                startedAtMs = 500L,
+                exercises = listOf(
+                    SessionExercise(
+                        exerciseStableId = "bench",
+                        position = 0,
+                        sets = listOf(SetEntry(position = 0, weightKg = 80.0, reps = 5, completed = true)),
+                    ),
+                ),
+                restExerciseStableId = "bench",
+                restTotalSeconds = 180,
+                restEndAtMs = FIXED_CLOCK + 60_000,
+                restPausedRemainingMs = 45_000L,
+            ),
+        )
+
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        subscribe(vm.restTimer)
+        advanceUntilIdle()
+
+        val restored = vm.restTimer.value
+        assertNotNull(restored)
+        assertEquals("Bench Press", restored!!.exerciseName)
+        assertEquals(180, restored.totalSeconds)
+        assertEquals(45, restored.remainingSeconds)
+        assertTrue(restored.isPaused)
+    }
+
+    @Test
+    fun `resuming drops an already-finished persisted rest timer and clears its anchor`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        sessions.save(
+            WorkoutSession(
+                stableId = "running",
+                date = java.time.LocalDate.now(),
+                isActive = true,
+                startedAtMs = 500L,
+                restExerciseStableId = "bench",
+                restTotalSeconds = 180,
+                restEndAtMs = FIXED_CLOCK - 1L,
+            ),
+        )
+
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        subscribe(vm.restTimer)
+        advanceUntilIdle()
+
+        assertNull(vm.restTimer.value)
+        assertNull(sessions.activeSession().first()!!.restExerciseStableId)
     }
 
     @Test

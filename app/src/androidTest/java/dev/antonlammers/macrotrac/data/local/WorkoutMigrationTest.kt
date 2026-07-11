@@ -80,6 +80,50 @@ class WorkoutMigrationTest {
         db.close()
     }
 
+    @Test
+    fun migrate8to9_addsRestTimerColumns_andPreservesExistingData() {
+        val db = openV7WithOneFoodEntry()
+        AppDatabase.MIGRATION_7_8.migrate(db)
+        db.execSQL(
+            "INSERT INTO workout_sessions (stableId, date, isActive, startedAtMs, endedAtMs, note) " +
+                "VALUES ('s1', '2026-07-10', 1, 1000, NULL, NULL)",
+        )
+
+        AppDatabase.MIGRATION_8_9.migrate(db)
+
+        val columns = db.query("PRAGMA table_info(workout_sessions)").use { c ->
+            val nameIdx = c.getColumnIndex("name")
+            buildSet { while (c.moveToNext()) add(c.getString(nameIdx)) }
+        }
+        assertTrue(
+            columns.containsAll(
+                listOf("restExerciseStableId", "restTotalSeconds", "restEndAtMs", "restPausedRemainingMs"),
+            ),
+        )
+
+        // The pre-existing session survived, with the new columns defaulting to null.
+        db.query(
+            "SELECT restExerciseStableId, restTotalSeconds, restEndAtMs, restPausedRemainingMs " +
+                "FROM workout_sessions WHERE stableId = 's1'",
+        ).use { c ->
+            c.moveToFirst()
+            assertTrue(c.isNull(0) && c.isNull(1) && c.isNull(2) && c.isNull(3))
+        }
+
+        // Usable: a running session can now persist a rest-timer anchor.
+        db.execSQL(
+            "UPDATE workout_sessions SET restExerciseStableId = 'squat', restTotalSeconds = 180, " +
+                "restEndAtMs = 5000, restPausedRemainingMs = NULL WHERE stableId = 's1'",
+        )
+        db.query("SELECT restExerciseStableId, restTotalSeconds FROM workout_sessions WHERE stableId = 's1'").use { c ->
+            c.moveToFirst()
+            assertEquals("squat", c.getString(0))
+            assertEquals(180, c.getInt(1))
+        }
+
+        db.close()
+    }
+
     /** Creates a fresh database at schema version 7 with one representative food entry. */
     private fun openV7WithOneFoodEntry(): SupportSQLiteDatabase {
         context.deleteDatabase(dbName)

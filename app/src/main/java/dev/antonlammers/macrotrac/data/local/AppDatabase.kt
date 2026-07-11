@@ -28,7 +28,7 @@ import dev.antonlammers.macrotrac.data.local.entity.WorkoutTemplateEntity
         ExerciseEntity::class, WorkoutTemplateEntity::class, TemplateExerciseEntity::class,
         WorkoutSessionEntity::class, SessionExerciseEntity::class, SetEntryEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -132,6 +132,19 @@ abstract class AppDatabase : RoomDatabase() {
 
                 db.execSQL("CREATE TABLE IF NOT EXISTS `set_entries` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionExerciseId` INTEGER NOT NULL, `position` INTEGER NOT NULL, `weightKg` REAL NOT NULL, `reps` INTEGER NOT NULL, `type` TEXT NOT NULL, `completed` INTEGER NOT NULL, FOREIGN KEY(`sessionExerciseId`) REFERENCES `session_exercises`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_set_entries_sessionExerciseId` ON `set_entries` (`sessionExerciseId`)")
+            }
+        }
+
+        /**
+         * Adds a persisted rest-timer anchor to `workout_sessions` so an in-progress rest survives
+         * leaving and resuming the session (all four columns nullable — null means "no rest running").
+         */
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE workout_sessions ADD COLUMN restExerciseStableId TEXT")
+                db.execSQL("ALTER TABLE workout_sessions ADD COLUMN restTotalSeconds INTEGER")
+                db.execSQL("ALTER TABLE workout_sessions ADD COLUMN restEndAtMs INTEGER")
+                db.execSQL("ALTER TABLE workout_sessions ADD COLUMN restPausedRemainingMs INTEGER")
             }
         }
     }

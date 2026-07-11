@@ -48,7 +48,7 @@ data class RestTimer(
 
     companion object {
         /** Global default rest duration when an exercise has no per-exercise override. */
-        const val DEFAULT_REST_SECONDS = 90
+        const val DEFAULT_REST_SECONDS = 180
 
         /** Floor for a configured/adjusted duration (keeps the timer meaningful). */
         const val MIN_REST_SECONDS = 5
