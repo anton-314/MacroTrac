@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.antonlammers.macrotrac.domain.InlineHistory
+import dev.antonlammers.macrotrac.domain.RestTimer
 import dev.antonlammers.macrotrac.domain.SetPerformance
 import dev.antonlammers.macrotrac.domain.model.Exercise
 import dev.antonlammers.macrotrac.domain.model.ExerciseType
@@ -15,17 +16,26 @@ import dev.antonlammers.macrotrac.domain.model.WorkoutSession
 import dev.antonlammers.macrotrac.domain.repository.ExerciseCatalogRepository
 import dev.antonlammers.macrotrac.domain.repository.WorkoutSessionRepository
 import dev.antonlammers.macrotrac.domain.repository.WorkoutTemplateRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.math.ceil
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -42,6 +52,8 @@ data class SessionExerciseUi(
     val sets: List<SetEntry>,
     /** Values logged for this exercise last time, shown as per-set placeholder hints (spec §3.3). */
     val lastPerformance: List<SetPerformance> = emptyList(),
+    /** Rest duration in seconds for this exercise (per-exercise override, or the global default). */
+    val restSeconds: Int = RestTimer.DEFAULT_REST_SECONDS,
 )
 
 data class WorkoutSessionUiState(
@@ -49,14 +61,32 @@ data class WorkoutSessionUiState(
     val exercises: List<SessionExerciseUi> = emptyList(),
 )
 
+/** The running rest timer as the screen renders it. */
+data class RestTimerUiState(
+    val exerciseName: String,
+    val totalSeconds: Int,
+    val remainingSeconds: Int,
+    val isPaused: Boolean,
+)
+
+/** VM-side wrapper pairing the pure [RestTimer] with the exercise it belongs to (for the label). */
+private data class ActiveRest(val exerciseName: String, val timer: RestTimer)
+
+/** One-shot command the screen turns into a WorkManager schedule/cancel (keeps the VM Android-free). */
+sealed interface RestCommand {
+    data class Schedule(val delayMs: Long) : RestCommand
+    data object Cancel : RestCommand
+}
+
 /**
- * Drives a live training session (spec §3.3; no rest-timer or volume/1RM/PR calculations yet). The
- * single active session is the source of truth and is **persisted on every change** (continuous
- * persistence), so it survives app death and is resumable. On entry the VM resumes the existing
- * active session if there is one; otherwise it creates a fresh one (empty or seeded from a template)
- * and immediately persists it. Each set carries a [SetType]; the ui state also exposes each
- * exercise's last-training values ([InlineHistory]) as placeholder hints. Finishing marks it
- * completed; discarding deletes it.
+ * Drives a live training session (spec §3.3; no volume/1RM/PR calculations yet). The single active
+ * session is the source of truth and is **persisted on every change** (continuous persistence), so
+ * it survives app death and is resumable. On entry the VM resumes the existing active session if
+ * there is one; otherwise it creates a fresh one (empty or seeded from a template) and immediately
+ * persists it. Each set carries a [SetType]; the ui state also exposes each exercise's last-training
+ * values ([InlineHistory]) as placeholder hints. Checking a set off starts the [RestTimer] (per-
+ * exercise duration, default 90 s), whose background notification the screen schedules via the
+ * emitted [RestCommand]s. Finishing marks it completed; discarding deletes it.
  */
 @HiltViewModel
 class WorkoutSessionViewModel(
@@ -87,6 +117,43 @@ class WorkoutSessionViewModel(
     /** Flips to true once the session is finished or discarded, signalling the screen to pop back. */
     val finished: StateFlow<Boolean> = _finished.asStateFlow()
 
+    // --- rest timer ---
+
+    private val _rest = MutableStateFlow<ActiveRest?>(null)
+
+    // One-shot WorkManager schedule/cancel commands; the screen (which has a Context) executes them.
+    private val restCommandChannel = Channel<RestCommand>(Channel.BUFFERED)
+    val restCommands: Flow<RestCommand> = restCommandChannel.receiveAsFlow()
+
+    /**
+     * The running rest timer, ticked once a second from the wall clock. Emits null when idle and
+     * auto-clears itself when the countdown reaches zero (the background notification, if any, is
+     * left to fire on its own — a finish must not cancel it).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val restTimer: StateFlow<RestTimerUiState?> = _rest.flatMapLatest { active ->
+        when {
+            active == null -> flowOf(null)
+            active.timer.isPaused -> flowOf(active.toUi(active.timer.remainingMs(clock())))
+            else -> flow {
+                while (true) {
+                    val remainingMs = active.timer.remainingMs(clock())
+                    emit(active.toUi(remainingMs))
+                    if (remainingMs <= 0L) break
+                    delay(TICK_MS)
+                }
+                _rest.value = null
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private fun ActiveRest.toUi(remainingMs: Long) = RestTimerUiState(
+        exerciseName = exerciseName,
+        totalSeconds = timer.totalSeconds,
+        remainingSeconds = ceil(remainingMs / 1000.0).toInt(),
+        isPaused = timer.isPaused,
+    )
+
     // Serializes saves so the first insert assigns the row id before any follow-up save reuses it.
     private val persistMutex = Mutex()
 
@@ -116,6 +183,7 @@ class WorkoutSessionViewModel(
                         type = exercise?.type ?: ExerciseType.WEIGHT_REPS,
                         sets = se.sets,
                         lastPerformance = InlineHistory.lastPerformance(history, se.exerciseStableId),
+                        restSeconds = exercise?.restSeconds ?: RestTimer.DEFAULT_REST_SECONDS,
                     )
                 },
             )
@@ -225,15 +293,74 @@ class WorkoutSessionViewModel(
     fun setReps(exerciseIndex: Int, setIndex: Int, reps: Int) =
         mutateSet(exerciseIndex, setIndex) { it.copy(reps = reps) }
 
-    fun toggleSetCompleted(exerciseIndex: Int, setIndex: Int) =
-        mutateSet(exerciseIndex, setIndex) { it.copy(completed = !it.completed) }
+    fun toggleSetCompleted(exerciseIndex: Int, setIndex: Int) {
+        val session = _session.value ?: return
+        val set = session.exercises.getOrNull(exerciseIndex)?.sets?.getOrNull(setIndex) ?: return
+        val nowCompleted = !set.completed
+        mutateSet(exerciseIndex, setIndex) { it.copy(completed = nowCompleted) }
+        // Checking a set off starts the rest timer; unchecking never does.
+        if (nowCompleted) startRest(session.exercises[exerciseIndex].exerciseStableId)
+    }
 
     fun setSetType(exerciseIndex: Int, setIndex: Int, type: SetType) =
         mutateSet(exerciseIndex, setIndex) { it.copy(type = type) }
 
+    // --- rest timer control ---
+
+    private fun startRest(exerciseStableId: String) {
+        viewModelScope.launch {
+            val exercise = catalog.exercise(exerciseStableId).first()
+            val seconds = exercise?.restSeconds ?: RestTimer.DEFAULT_REST_SECONDS
+            val timer = RestTimer.start(clock(), seconds)
+            _rest.value = ActiveRest(exercise?.name ?: exerciseStableId, timer)
+            restCommandChannel.send(RestCommand.Schedule(timer.remainingMs(clock())))
+        }
+    }
+
+    fun pauseRest() {
+        val active = _rest.value ?: return
+        if (active.timer.isPaused) return
+        _rest.value = active.copy(timer = active.timer.paused(clock()))
+        restCommandChannel.trySend(RestCommand.Cancel)
+    }
+
+    fun resumeRest() {
+        val active = _rest.value ?: return
+        if (!active.timer.isPaused) return
+        val resumed = active.timer.resumed(clock())
+        _rest.value = active.copy(timer = resumed)
+        restCommandChannel.trySend(RestCommand.Schedule(resumed.remainingMs(clock())))
+    }
+
+    /** Add/subtract rest time on the running (or paused) countdown, e.g. ±15 s. */
+    fun adjustRest(deltaSeconds: Int) {
+        val active = _rest.value ?: return
+        val adjusted = active.timer.adjusted(clock(), deltaSeconds)
+        _rest.value = active.copy(timer = adjusted)
+        // Only running timers have pending work to reschedule; a paused one reschedules on resume.
+        if (!adjusted.isPaused) restCommandChannel.trySend(RestCommand.Schedule(adjusted.remainingMs(clock())))
+    }
+
+    fun skipRest() = cancelRest()
+
+    private fun cancelRest() {
+        if (_rest.value == null) return
+        _rest.value = null
+        restCommandChannel.trySend(RestCommand.Cancel)
+    }
+
+    /** Persist a per-exercise rest override (spec §3.3 — stored on the exercise via [restSeconds]). */
+    fun setExerciseRest(exerciseStableId: String, seconds: Int) {
+        viewModelScope.launch {
+            val exercise = catalog.exercise(exerciseStableId).first() ?: return@launch
+            catalog.upsertAll(listOf(exercise.copy(restSeconds = seconds.coerceAtLeast(RestTimer.MIN_REST_SECONDS))))
+        }
+    }
+
     // --- lifecycle ---
 
     fun finish() {
+        cancelRest()
         _session.update { it?.copy(isActive = false, endedAtMs = clock()) }
         viewModelScope.launch {
             persist()
@@ -242,6 +369,7 @@ class WorkoutSessionViewModel(
     }
 
     fun discard() {
+        cancelRest()
         val current = _session.value
         viewModelScope.launch {
             if (current != null && current.id != 0L) sessions.delete(current.id)
@@ -277,5 +405,9 @@ class WorkoutSessionViewModel(
         val current = _session.value ?: return@withLock
         val id = sessions.save(current)
         if (current.id != id) _session.update { it?.copy(id = id) }
+    }
+
+    private companion object {
+        const val TICK_MS = 250L
     }
 }

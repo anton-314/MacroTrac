@@ -22,17 +22,24 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -45,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -53,6 +61,7 @@ import androidx.navigation.NavController
 import dev.antonlammers.macrotrac.domain.model.ExerciseType
 import dev.antonlammers.macrotrac.domain.model.SetEntry
 import dev.antonlammers.macrotrac.domain.model.SetType
+import dev.antonlammers.macrotrac.notification.RestTimerScheduler
 import dev.antonlammers.macrotrac.ui.components.NumericTextField
 
 /**
@@ -70,11 +79,23 @@ fun WorkoutSessionScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val finished by viewModel.finished.collectAsStateWithLifecycle()
+    val restTimer by viewModel.restTimer.collectAsStateWithLifecycle()
     var showPicker by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(finished) {
         if (finished) navController.popBackStack()
+    }
+
+    // The VM stays Android-free: it emits schedule/cancel commands, executed here against WorkManager.
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        viewModel.restCommands.collect { command ->
+            when (command) {
+                is RestCommand.Schedule -> RestTimerScheduler.schedule(context, command.delayMs)
+                RestCommand.Cancel -> RestTimerScheduler.cancel(context)
+            }
+        }
     }
 
     if (showPicker) {
@@ -132,6 +153,16 @@ fun WorkoutSessionScreen(
                 },
             )
         },
+        bottomBar = {
+            restTimer?.let { timer ->
+                RestTimerBar(
+                    timer = timer,
+                    onPauseResume = { if (timer.isPaused) viewModel.resumeRest() else viewModel.pauseRest() },
+                    onAdjust = viewModel::adjustRest,
+                    onSkip = viewModel::skipRest,
+                )
+            }
+        },
     ) { padding ->
         if (state.loading) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
@@ -159,6 +190,7 @@ fun WorkoutSessionScreen(
                         onRepsChange = { setIndex, r -> viewModel.setReps(index, setIndex, r) },
                         onToggleCompleted = { setIndex -> viewModel.toggleSetCompleted(index, setIndex) },
                         onSetTypeChange = { setIndex, type -> viewModel.setSetType(index, setIndex, type) },
+                        onRestChange = { seconds -> viewModel.setExerciseRest(exercise.exerciseStableId, seconds) },
                     )
                 }
                 item {
@@ -192,6 +224,7 @@ private fun ExerciseCard(
     onRepsChange: (Int, Int) -> Unit,
     onToggleCompleted: (Int) -> Unit,
     onSetTypeChange: (Int, SetType) -> Unit,
+    onRestChange: (Int) -> Unit,
 ) {
     val weightCaption = if (exercise.type == ExerciseType.BODYWEIGHT) "ZUSATZ" else "KG"
     Column(
@@ -203,8 +236,9 @@ private fun ExerciseCard(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(exercise.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            RestDurationChip(restSeconds = exercise.restSeconds, onRestChange = onRestChange)
             IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Rounded.Close, contentDescription = "Übung entfernen", tint = MaterialTheme.colorScheme.outline)
             }
@@ -378,6 +412,111 @@ private fun EmptySessionHint() {
             textAlign = TextAlign.Center,
         )
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rest timer
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The sticky rest-timer bar: a progress line over the remaining mm:ss, with ±15 s adjust, a
+ * pause/resume toggle and skip. Flat, hairline-topped, Ink & Paper.
+ */
+@Composable
+private fun RestTimerBar(
+    timer: RestTimerUiState,
+    onPauseResume: () -> Unit,
+    onAdjust: (Int) -> Unit,
+    onSkip: () -> Unit,
+) {
+    val fraction = if (timer.totalSeconds > 0) {
+        (timer.remainingSeconds.toFloat() / timer.totalSeconds).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+        Column {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            LinearProgressIndicator(
+                progress = { fraction },
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        if (timer.isPaused) "PAUSE PAUSIERT" else "PAUSE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(formatMmSs(timer.remainingSeconds), style = MaterialTheme.typography.titleLarge)
+                }
+                TextButton(onClick = { onAdjust(-ADJUST_STEP_SECONDS) }) { Text("−15") }
+                IconButton(onClick = onPauseResume) {
+                    if (timer.isPaused) {
+                        Icon(Icons.Rounded.PlayArrow, contentDescription = "Fortsetzen", tint = MaterialTheme.colorScheme.primary)
+                    } else {
+                        Icon(Icons.Rounded.Pause, contentDescription = "Pausieren", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                TextButton(onClick = { onAdjust(ADJUST_STEP_SECONDS) }) { Text("+15") }
+                IconButton(onClick = onSkip) {
+                    Icon(Icons.Rounded.SkipNext, contentDescription = "Überspringen", tint = MaterialTheme.colorScheme.outline)
+                }
+            }
+        }
+    }
+}
+
+/** Per-exercise rest override: a hairline pill showing the current duration; tap picks a preset. */
+@Composable
+private fun RestDurationChip(restSeconds: Int, onRestChange: (Int) -> Unit) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(50))
+                .clickable { menuOpen = true }
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                Icons.Rounded.Timer,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(14.dp),
+            )
+            Text(
+                "${restSeconds}s",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            REST_PRESETS.forEach { seconds ->
+                DropdownMenuItem(
+                    text = { Text("${seconds}s") },
+                    onClick = { menuOpen = false; onRestChange(seconds) },
+                )
+            }
+        }
+    }
+}
+
+private const val ADJUST_STEP_SECONDS = 15
+private val REST_PRESETS = listOf(30, 60, 90, 120, 150, 180, 240)
+
+private fun formatMmSs(totalSeconds: Int): String {
+    val safe = totalSeconds.coerceAtLeast(0)
+    return "%d:%02d".format(safe / 60, safe % 60)
 }
 
 private fun parseWeight(text: String): Double = text.replace(',', '.').toDoubleOrNull() ?: 0.0

@@ -1,5 +1,6 @@
 package dev.antonlammers.macrotrac.ui.workout
 
+import app.cash.turbine.test
 import dev.antonlammers.macrotrac.domain.SetPerformance
 import dev.antonlammers.macrotrac.domain.model.Exercise
 import dev.antonlammers.macrotrac.domain.model.ExerciseType
@@ -248,6 +249,92 @@ class WorkoutSessionViewModelTest {
             listOf(SetPerformance(80.0, 8), SetPerformance(82.5, 6)),
             vm.uiState.value.exercises.single().lastPerformance,
         )
+    }
+
+    // --- rest timer ---
+    // Commands are one-shot events on a channel-backed flow, so they are asserted with turbine
+    // (which drives collection reliably across the test/main dispatchers).
+
+    private suspend fun WorkoutSessionViewModel.startedWithOneExercise(scope: TestScope) {
+        scope.advanceUntilIdle()
+        addExercise(exercise("bench", "Bench Press"))
+        scope.advanceUntilIdle()
+    }
+
+    @Test
+    fun `checking a set off starts the rest timer and schedules the notification`() = runTest {
+        val vm = viewModel()
+        vm.startedWithOneExercise(this)
+        vm.restCommands.test {
+            vm.toggleSetCompleted(0, 0)
+            assertEquals(RestCommand.Schedule(90_000), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `the per-exercise rest override sets the timer duration`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press").copy(restSeconds = 120)))
+        val vm = viewModel()
+        vm.startedWithOneExercise(this)
+        vm.restCommands.test {
+            vm.toggleSetCompleted(0, 0)
+            assertEquals(RestCommand.Schedule(120_000), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `pause cancels and resume reschedules the remaining time`() = runTest {
+        val vm = viewModel()
+        vm.startedWithOneExercise(this)
+        vm.restCommands.test {
+            vm.toggleSetCompleted(0, 0)
+            assertEquals(RestCommand.Schedule(90_000), awaitItem())
+            vm.pauseRest()
+            assertEquals(RestCommand.Cancel, awaitItem())
+            vm.resumeRest()
+            assertEquals(RestCommand.Schedule(90_000), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `adjusting reschedules with the new remaining time`() = runTest {
+        val vm = viewModel()
+        vm.startedWithOneExercise(this)
+        vm.restCommands.test {
+            vm.toggleSetCompleted(0, 0)
+            assertEquals(RestCommand.Schedule(90_000), awaitItem())
+            vm.adjustRest(15)
+            assertEquals(RestCommand.Schedule(105_000), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `skipping cancels the timer`() = runTest {
+        val vm = viewModel()
+        vm.startedWithOneExercise(this)
+        vm.restCommands.test {
+            vm.toggleSetCompleted(0, 0)
+            assertEquals(RestCommand.Schedule(90_000), awaitItem())
+            vm.skipRest()
+            assertEquals(RestCommand.Cancel, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setExerciseRest persists the override on the exercise`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        val vm = viewModel()
+        advanceUntilIdle()
+
+        vm.setExerciseRest("bench", 150)
+        advanceUntilIdle()
+
+        assertEquals(150, catalog.exercise("bench").first()!!.restSeconds)
     }
 
     // --- continuous persistence ---
