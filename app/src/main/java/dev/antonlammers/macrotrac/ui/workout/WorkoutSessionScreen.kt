@@ -21,7 +21,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
@@ -63,6 +63,7 @@ import dev.antonlammers.macrotrac.domain.model.SetEntry
 import dev.antonlammers.macrotrac.domain.model.SetType
 import dev.antonlammers.macrotrac.notification.RestTimerNotifier
 import dev.antonlammers.macrotrac.notification.RestTimerScheduler
+import dev.antonlammers.macrotrac.ui.components.DragReorderColumn
 import dev.antonlammers.macrotrac.ui.components.NumericTextField
 import dev.antonlammers.macrotrac.ui.navigation.Screen
 
@@ -197,8 +198,7 @@ fun WorkoutSessionScreen(
                         onRemove = { viewModel.removeExercise(index) },
                         onAddSet = { viewModel.addSet(index) },
                         onRemoveSet = { setIndex -> viewModel.removeSet(index, setIndex) },
-                        onMoveSetUp = { setIndex -> viewModel.moveSetUp(index, setIndex) },
-                        onMoveSetDown = { setIndex -> viewModel.moveSetDown(index, setIndex) },
+                        onMoveSet = { from, to -> viewModel.moveSet(index, from, to) },
                         onWeightChange = { setIndex, w -> viewModel.setWeight(index, setIndex, w) },
                         onRepsChange = { setIndex, r -> viewModel.setReps(index, setIndex, r) },
                         onToggleCompleted = { setIndex -> viewModel.toggleSetCompleted(index, setIndex) },
@@ -232,8 +232,7 @@ private fun ExerciseCard(
     onRemove: () -> Unit,
     onAddSet: () -> Unit,
     onRemoveSet: (Int) -> Unit,
-    onMoveSetUp: (Int) -> Unit,
-    onMoveSetDown: (Int) -> Unit,
+    onMoveSet: (from: Int, to: Int) -> Unit,
     onWeightChange: (Int, Double) -> Unit,
     onRepsChange: (Int, Int) -> Unit,
     onToggleCompleted: (Int) -> Unit,
@@ -264,29 +263,35 @@ private fun ExerciseCard(
 
         // Column captions
         Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.width(36.dp)) // spacer for the drag-handle column
             Caption("SATZ", Modifier.width(32.dp))
             Caption(weightCaption, Modifier.weight(1f))
             Caption("WDH", Modifier.weight(1f))
-            // spacers for the check + menu columns
+            // spacers for the check + delete columns
             Box(Modifier.width(88.dp))
         }
 
-        exercise.sets.forEachIndexed { setIndex, set ->
+        DragReorderColumn(
+            items = exercise.sets,
+            key = { it.id },
+            onMove = onMoveSet,
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) { setIndex, set, rowModifier, dragHandleModifier, isDragging ->
             val hint = exercise.lastPerformance.getOrNull(setIndex)
             SetRow(
                 setNumber = setIndex + 1,
                 set = set,
                 weightPlaceholder = hint?.let { weightToText(it.weightKg).ifEmpty { "0" } },
                 repsPlaceholder = hint?.let { it.reps.takeIf { r -> r != 0 }?.toString() },
+                isDragging = isDragging,
+                rowModifier = rowModifier,
+                dragHandleModifier = dragHandleModifier,
                 onWeightChange = { onWeightChange(setIndex, it) },
                 onRepsChange = { onRepsChange(setIndex, it) },
                 onToggleCompleted = { onToggleCompleted(setIndex) },
                 onSetTypeChange = { onSetTypeChange(setIndex, it) },
-                onMoveUp = { onMoveSetUp(setIndex) },
-                onMoveDown = { onMoveSetDown(setIndex) },
                 onDelete = { onRemoveSet(setIndex) },
-                canMoveUp = setIndex > 0,
-                canMoveDown = setIndex < exercise.sets.lastIndex,
             )
         }
 
@@ -321,23 +326,36 @@ private fun SetRow(
     set: SetEntry,
     weightPlaceholder: String?,
     repsPlaceholder: String?,
+    isDragging: Boolean,
+    rowModifier: Modifier,
+    dragHandleModifier: Modifier,
     onWeightChange: (Double) -> Unit,
     onRepsChange: (Int) -> Unit,
     onToggleCompleted: () -> Unit,
     onSetTypeChange: (SetType) -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
     onDelete: () -> Unit,
-    canMoveUp: Boolean,
-    canMoveDown: Boolean,
 ) {
     // Local text is the field's source of truth (so intermediate values like "82." survive); it is
     // seeded from the set and re-seeded only when the stable set id changes (never mid-edit/reorder).
     var weightText by remember(set.id) { mutableStateOf(weightToText(set.weightKg)) }
     var repsText by remember(set.id) { mutableStateOf(repsToText(set.reps)) }
-    var menuOpen by remember { mutableStateOf(false) }
 
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        modifier = rowModifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                if (isDragging) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(
+            Icons.Rounded.DragIndicator,
+            contentDescription = "Ziehen zum Verschieben",
+            tint = MaterialTheme.colorScheme.outline,
+            modifier = dragHandleModifier.size(28.dp),
+        )
         SetTypeBadge(
             setNumber = setNumber,
             type = set.type,
@@ -367,26 +385,8 @@ private fun SetRow(
                 Icon(Icons.Rounded.RadioButtonUnchecked, contentDescription = "Satz offen", tint = MaterialTheme.colorScheme.outline)
             }
         }
-        Box {
-            IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Rounded.MoreVert, contentDescription = "Satz-Optionen", tint = MaterialTheme.colorScheme.outline)
-            }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                DropdownMenuItem(
-                    text = { Text("Nach oben") },
-                    enabled = canMoveUp,
-                    onClick = { menuOpen = false; onMoveUp() },
-                )
-                DropdownMenuItem(
-                    text = { Text("Nach unten") },
-                    enabled = canMoveDown,
-                    onClick = { menuOpen = false; onMoveDown() },
-                )
-                DropdownMenuItem(
-                    text = { Text("Löschen") },
-                    onClick = { menuOpen = false; onDelete() },
-                )
-            }
+        IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
+            Icon(Icons.Rounded.Close, contentDescription = "Satz löschen", tint = MaterialTheme.colorScheme.outline)
         }
     }
 }

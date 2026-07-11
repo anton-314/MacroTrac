@@ -110,27 +110,27 @@ class TemplateEditorViewModelTest {
     // --- reordering ---
 
     @Test
-    fun `moveUp and moveDown reorder slots`() = runTest {
+    fun `moveSlot reorders slots`() = runTest {
         val vm = editorFor(0)
         vm.addExercise(exercise("a", "A"))
         vm.addExercise(exercise("b", "B"))
         vm.addExercise(exercise("c", "C"))
 
-        vm.moveDown(0)
+        vm.moveSlot(0, 1)
         assertEquals(listOf("B", "A", "C"), vm.uiState.value.slots.map { it.exerciseName })
 
-        vm.moveUp(2)
+        vm.moveSlot(2, 1)
         assertEquals(listOf("B", "C", "A"), vm.uiState.value.slots.map { it.exerciseName })
     }
 
     @Test
-    fun `reorder at the edges is a no-op`() = runTest {
+    fun `moveSlot out of range is a no-op`() = runTest {
         val vm = editorFor(0)
         vm.addExercise(exercise("a", "A"))
         vm.addExercise(exercise("b", "B"))
 
-        vm.moveUp(0)
-        vm.moveDown(1)
+        vm.moveSlot(0, -1)
+        vm.moveSlot(1, 2)
         assertEquals(listOf("A", "B"), vm.uiState.value.slots.map { it.exerciseName })
     }
 

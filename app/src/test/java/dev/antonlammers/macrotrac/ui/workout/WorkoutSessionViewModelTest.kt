@@ -180,7 +180,7 @@ class WorkoutSessionViewModelTest {
     }
 
     @Test
-    fun `moveSetDown reorders sets and reindexes positions`() = runTest {
+    fun `moveSet reorders sets and reindexes positions`() = runTest {
         val vm = viewModel()
         subscribe(vm.uiState)
         advanceUntilIdle()
@@ -191,7 +191,7 @@ class WorkoutSessionViewModelTest {
         vm.setReps(0, 0, 10) // first set marked so we can track it
         advanceUntilIdle()
 
-        vm.moveSetDown(0, 0)
+        vm.moveSet(0, 0, 1)
         advanceUntilIdle()
 
         val sets = vm.uiState.value.exercises[0].sets

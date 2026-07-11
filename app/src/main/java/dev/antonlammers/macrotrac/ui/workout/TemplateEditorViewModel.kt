@@ -24,6 +24,8 @@ import javax.inject.Inject
 
 /** One exercise slot being edited: the referenced exercise plus its planned target-set count. */
 data class TemplateSlot(
+    /** Stable per-slot client id (survives drag reordering); never persisted. */
+    val id: Long,
     val exerciseStableId: String,
     val exerciseName: String,
     val targetSets: Int,
@@ -50,6 +52,10 @@ class TemplateEditorViewModel @Inject constructor(
 
     /** Reused when saving an existing template so its backup-stable key is preserved. */
     private var stableId: String = UUID.randomUUID().toString()
+
+    // Synthetic, never-persisted per-slot ids — only used as stable Compose keys for drag reorder.
+    private var nextClientId = -1L
+    private fun newId(): Long = nextClientId--
 
     private val _uiState = MutableStateFlow(TemplateEditorUiState())
     val uiState: StateFlow<TemplateEditorUiState> = _uiState.asStateFlow()
@@ -97,6 +103,7 @@ class TemplateEditorViewModel @Inject constructor(
                     .sortedBy { e -> e.position }
                     .map { e ->
                         TemplateSlot(
+                            id = newId(),
                             exerciseStableId = e.exerciseStableId,
                             exerciseName = names[e.exerciseStableId] ?: e.exerciseStableId,
                             targetSets = e.targetSets,
@@ -115,6 +122,7 @@ class TemplateEditorViewModel @Inject constructor(
     fun addExercise(exercise: Exercise) = _uiState.update { state ->
         state.copy(
             slots = state.slots + TemplateSlot(
+                id = newId(),
                 exerciseStableId = exercise.stableId,
                 exerciseName = exercise.name,
                 targetSets = DEFAULT_TARGET_SETS,
@@ -137,14 +145,12 @@ class TemplateEditorViewModel @Inject constructor(
         )
     }
 
-    fun moveUp(index: Int) = swap(index, index - 1)
-    fun moveDown(index: Int) = swap(index, index + 1)
-
-    private fun swap(a: Int, b: Int) = _uiState.update { state ->
-        if (a !in state.slots.indices || b !in state.slots.indices) return@update state
+    /** Swap two slots — called repeatedly (once per adjacent step) while a slot is dragged into place. */
+    fun moveSlot(from: Int, to: Int) = _uiState.update { state ->
+        if (from !in state.slots.indices || to !in state.slots.indices) return@update state
         state.copy(
             slots = state.slots.toMutableList().apply {
-                val tmp = this[a]; this[a] = this[b]; this[b] = tmp
+                val tmp = this[from]; this[from] = this[to]; this[to] = tmp
             },
         )
     }

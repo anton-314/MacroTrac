@@ -307,14 +307,12 @@ class WorkoutSessionViewModel(
         exercise.copy(sets = reindexSets(exercise.sets.filterIndexed { i, _ -> i != setIndex }))
     }
 
-    fun moveSetUp(exerciseIndex: Int, setIndex: Int) = swapSets(exerciseIndex, setIndex, setIndex - 1)
-    fun moveSetDown(exerciseIndex: Int, setIndex: Int) = swapSets(exerciseIndex, setIndex, setIndex + 1)
-
-    private fun swapSets(exerciseIndex: Int, a: Int, b: Int) = mutateExercise(exerciseIndex) { exercise ->
-        if (a !in exercise.sets.indices || b !in exercise.sets.indices) return@mutateExercise exercise
+    /** Swap two sets within an exercise — called repeatedly (once per adjacent step) while a set is dragged into place. */
+    fun moveSet(exerciseIndex: Int, from: Int, to: Int) = mutateExercise(exerciseIndex) { exercise ->
+        if (from !in exercise.sets.indices || to !in exercise.sets.indices) return@mutateExercise exercise
         exercise.copy(
             sets = reindexSets(
-                exercise.sets.toMutableList().apply { val tmp = this[a]; this[a] = this[b]; this[b] = tmp },
+                exercise.sets.toMutableList().apply { val tmp = this[from]; this[from] = this[to]; this[to] = tmp },
             ),
         )
     }

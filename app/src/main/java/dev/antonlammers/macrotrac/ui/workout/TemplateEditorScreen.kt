@@ -11,15 +11,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -44,12 +42,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import dev.antonlammers.macrotrac.ui.components.DragReorderColumn
 
 /**
  * Full-screen editor for creating or editing a [dev.antonlammers.macrotrac.domain.model.WorkoutTemplate]:
- * a name, an ordered list of exercises (reorder up/down, remove) each with a target-set stepper, and
- * an "add exercise" action that opens a searchable catalog picker sheet. All editing logic lives in
- * [TemplateEditorViewModel]; this screen only renders it. Ink & Paper style.
+ * a name, an ordered list of exercises (drag-to-reorder via [DragReorderColumn], remove) each with a
+ * target-set stepper, and an "add exercise" action that opens a searchable catalog picker sheet. All
+ * editing logic lives in [TemplateEditorViewModel]; this screen only renders it. Ink & Paper style.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,17 +139,24 @@ fun TemplateEditorScreen(
                     )
                 }
             } else {
-                itemsIndexed(state.slots, key = { index, _ -> index }) { index, slot ->
-                    SlotCard(
-                        slot = slot,
-                        isFirst = index == 0,
-                        isLast = index == state.slots.lastIndex,
-                        onMoveUp = { viewModel.moveUp(index) },
-                        onMoveDown = { viewModel.moveDown(index) },
-                        onRemove = { viewModel.removeExercise(index) },
-                        onDecrement = { viewModel.setTargetSets(index, slot.targetSets - 1) },
-                        onIncrement = { viewModel.setTargetSets(index, slot.targetSets + 1) },
-                    )
+                item {
+                    DragReorderColumn(
+                        items = state.slots,
+                        key = { it.id },
+                        onMove = viewModel::moveSlot,
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) { index, slot, rowModifier, dragHandleModifier, isDragging ->
+                        SlotCard(
+                            slot = slot,
+                            isDragging = isDragging,
+                            rowModifier = rowModifier,
+                            dragHandleModifier = dragHandleModifier,
+                            onRemove = { viewModel.removeExercise(index) },
+                            onDecrement = { viewModel.setTargetSets(index, slot.targetSets - 1) },
+                            onIncrement = { viewModel.setTargetSets(index, slot.targetSets + 1) },
+                        )
+                    }
                 }
             }
 
@@ -172,46 +178,35 @@ fun TemplateEditorScreen(
     }
 }
 
-/** A single exercise slot: reorder controls, name, target-set stepper, remove. */
+/** A single exercise slot: drag handle, name, target-set stepper, remove. */
 @Composable
 private fun SlotCard(
     slot: TemplateSlot,
-    isFirst: Boolean,
-    isLast: Boolean,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
+    isDragging: Boolean,
+    rowModifier: Modifier,
+    dragHandleModifier: Modifier,
     onRemove: () -> Unit,
     onDecrement: () -> Unit,
     onIncrement: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
+        modifier = rowModifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface)
+            .background(
+                if (isDragging) MaterialTheme.colorScheme.surfaceVariant
+                else MaterialTheme.colorScheme.surface,
+            )
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
-            .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            .padding(start = 4.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Reorder handles
-        Column {
-            IconButton(onClick = onMoveUp, enabled = !isFirst, modifier = Modifier.size(28.dp)) {
-                Icon(
-                    Icons.Rounded.KeyboardArrowUp,
-                    contentDescription = "Nach oben",
-                    tint = if (isFirst) MaterialTheme.colorScheme.outlineVariant
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            IconButton(onClick = onMoveDown, enabled = !isLast, modifier = Modifier.size(28.dp)) {
-                Icon(
-                    Icons.Rounded.KeyboardArrowDown,
-                    contentDescription = "Nach unten",
-                    tint = if (isLast) MaterialTheme.colorScheme.outlineVariant
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+        Icon(
+            Icons.Rounded.DragIndicator,
+            contentDescription = "Ziehen zum Verschieben",
+            tint = MaterialTheme.colorScheme.outline,
+            modifier = dragHandleModifier.size(28.dp),
+        )
 
         Text(
             slot.exerciseName,
