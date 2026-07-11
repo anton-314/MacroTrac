@@ -110,6 +110,25 @@ class WorkoutRepositoriesTest {
     }
 
     @Test
+    fun `re-saving a template with id 0 and a known stableId replaces it instead of duplicating`() = runTest {
+        // Mirrors a backup re-import: the reassembled template always carries id = 0, so only the
+        // stableId identifies it as the same template already on the target device.
+        val repo = WorkoutTemplateRepositoryImpl(FakeWorkoutTemplateDao(), ImmediateTransactionRunner())
+        repo.save(
+            WorkoutTemplate(stableId = "tpl", name = "Push", exercises = listOf(TemplateExercise("bench", 0, 4))),
+        )
+
+        repo.save(
+            WorkoutTemplate(stableId = "tpl", name = "Push v2", exercises = listOf(TemplateExercise("dips", 0, 3))),
+        )
+
+        val all = repo.templates().first()
+        assertEquals(1, all.size)
+        assertEquals("Push v2", all.single().name)
+        assertEquals(listOf("dips"), all.single().exercises.map { it.exerciseStableId })
+    }
+
+    @Test
     fun `deleting a template removes it and its exercises`() = runTest {
         val repo = WorkoutTemplateRepositoryImpl(FakeWorkoutTemplateDao(), ImmediateTransactionRunner())
         val id = repo.save(
@@ -150,6 +169,41 @@ class WorkoutRepositoriesTest {
         assertEquals(SetType.WARMUP, sets[0].type)
         assertEquals(100.0, sets[1].weightKg, 0.0)
         assertTrue(sets[1].completed)
+    }
+
+    @Test
+    fun `re-saving a session with id 0 and a known stableId replaces it instead of duplicating`() = runTest {
+        // Mirrors a backup re-import: the reassembled session always carries id = 0, so only the
+        // stableId identifies it as the same session already on the target device.
+        val repo = WorkoutSessionRepositoryImpl(FakeWorkoutSessionDao(), ImmediateTransactionRunner())
+        repo.save(
+            WorkoutSession(
+                stableId = "s1", date = LocalDate.of(2026, 7, 10), isActive = false, startedAtMs = 1_000, endedAtMs = 2_000,
+                exercises = listOf(
+                    SessionExercise(
+                        exerciseStableId = "squat", position = 0,
+                        sets = listOf(SetEntry(position = 0, weightKg = 100.0, reps = 5, completed = true)),
+                    ),
+                ),
+            ),
+        )
+
+        // Re-import of the exact same backup content.
+        repo.save(
+            WorkoutSession(
+                stableId = "s1", date = LocalDate.of(2026, 7, 10), isActive = false, startedAtMs = 1_000, endedAtMs = 2_000,
+                exercises = listOf(
+                    SessionExercise(
+                        exerciseStableId = "squat", position = 0,
+                        sets = listOf(SetEntry(position = 0, weightKg = 100.0, reps = 5, completed = true)),
+                    ),
+                ),
+            ),
+        )
+
+        val all = repo.sessions().first()
+        assertEquals(1, all.size)
+        assertEquals(1, all.single().exercises.single().sets.size)
     }
 
     @Test
@@ -227,15 +281,17 @@ private class FakeWorkoutTemplateDao : WorkoutTemplateDao {
         }
 
     override suspend fun insertTemplate(template: WorkoutTemplateEntity): Long {
-        if (template.id == 0L) {
-            val id = nextTemplateId++
-            templates.update { it + template.copy(id = id) }
-            return id
+        // REPLACE triggers on any unique-constraint hit — the id (known-row edit) or, for a fresh
+        // insert (id == 0, e.g. backup re-import), the unique stableId index — evicting that row and
+        // cascade-clearing its children before the new row takes its place.
+        val conflict = templates.value.firstOrNull { it.id == template.id || it.stableId == template.stableId }
+        if (conflict != null) {
+            templates.update { list -> list.filterNot { it.id == conflict.id } }
+            exercises.update { it.filterNot { te -> te.templateId == conflict.id } }
         }
-        // REPLACE: swap the row and cascade-clear its children.
-        templates.update { list -> list.filterNot { it.id == template.id } + template }
-        exercises.update { it.filterNot { te -> te.templateId == template.id } }
-        return template.id
+        val id = if (template.id != 0L) template.id else nextTemplateId++
+        templates.update { it + template.copy(id = id) }
+        return id
     }
 
     override suspend fun insertTemplateExercises(list: List<TemplateExerciseEntity>) {
@@ -284,14 +340,17 @@ private class FakeWorkoutSessionDao : WorkoutSessionDao {
         }
 
     override suspend fun insertSession(session: WorkoutSessionEntity): Long {
-        if (session.id == 0L) {
-            val id = nextSessionId++
-            sessions.update { it + session.copy(id = id) }
-            return id
+        // REPLACE triggers on any unique-constraint hit — the id (known-row edit) or, for a fresh
+        // insert (id == 0, e.g. backup re-import), the unique stableId index — evicting that row and
+        // cascade-clearing its exercise/set graph before the new row takes its place.
+        val conflict = sessions.value.firstOrNull { it.id == session.id || it.stableId == session.stableId }
+        if (conflict != null) {
+            sessions.update { list -> list.filterNot { it.id == conflict.id } }
+            clearGraph(conflict.id)
         }
-        sessions.update { list -> list.filterNot { it.id == session.id } + session }
-        clearGraph(session.id)
-        return session.id
+        val id = if (session.id != 0L) session.id else nextSessionId++
+        sessions.update { it + session.copy(id = id) }
+        return id
     }
 
     override suspend fun insertSessionExercise(exercise: SessionExerciseEntity): Long {

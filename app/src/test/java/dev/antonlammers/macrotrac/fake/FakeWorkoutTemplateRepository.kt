@@ -18,7 +18,10 @@ class FakeWorkoutTemplateRepository : WorkoutTemplateRepository {
         _templates.map { list -> list.firstOrNull { it.id == id } }
 
     override suspend fun save(template: WorkoutTemplate): Long {
-        val id = if (template.id == 0L) nextId++ else template.id
+        // Mirrors Room's unique(stableId) + REPLACE: a fresh insert (id == 0) whose stableId already
+        // exists (e.g. re-importing the same backup) replaces that row instead of adding a new one.
+        val conflict = if (template.id == 0L) _templates.value.firstOrNull { it.stableId == template.stableId } else null
+        val id = conflict?.id ?: if (template.id == 0L) nextId++ else template.id
         val normalized = template.copy(
             id = id,
             exercises = template.exercises.mapIndexed { index, e -> e.copy(position = index) },

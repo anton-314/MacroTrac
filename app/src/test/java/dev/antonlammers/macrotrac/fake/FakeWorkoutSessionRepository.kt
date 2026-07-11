@@ -22,7 +22,10 @@ class FakeWorkoutSessionRepository : WorkoutSessionRepository {
         _sessions.map { list -> list.firstOrNull { it.isActive } }
 
     override suspend fun save(session: WorkoutSession): Long {
-        val id = if (session.id == 0L) nextId++ else session.id
+        // Mirrors Room's unique(stableId) + REPLACE: a fresh insert (id == 0) whose stableId already
+        // exists (e.g. re-importing the same backup) replaces that row instead of adding a new one.
+        val conflict = if (session.id == 0L) _sessions.value.firstOrNull { it.stableId == session.stableId } else null
+        val id = conflict?.id ?: if (session.id == 0L) nextId++ else session.id
         _sessions.update { list ->
             val others = list.filterNot { it.id == id }
             // Encode the invariant the app relies on: at most one active session at a time.

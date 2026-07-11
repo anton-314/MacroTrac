@@ -233,6 +233,37 @@ class BackupImporterTest {
     }
 
     @Test
+    fun `re-importing the same backup ZIP does not duplicate templates or sessions`() = runTest {
+        val catalog = FakeExerciseCatalogRepository()
+        val templates = FakeWorkoutTemplateRepository()
+        val sessions = FakeWorkoutSessionRepository()
+        val zip = fullBackupZip()
+        val targets = targetsOf(catalog = catalog, templates = templates, sessions = sessions)
+
+        importZipEntries(ByteArrayInputStream(zip), targets)
+        val secondResult = importZipEntries(ByteArrayInputStream(zip), targets)
+
+        // The second import still parses and reports every row — it's the target repositories that
+        // recognise the stableId and replace in place rather than piling up duplicates.
+        assertEquals(1, secondResult.exercisesImported)
+        assertEquals(1, secondResult.templatesImported)
+        assertEquals(1, secondResult.sessionsImported)
+
+        assertEquals(1, catalog.exercises().first().count { it.stableId == "custom-klimmzug" })
+
+        val allTemplates = templates.templates().first()
+        assertEquals(1, allTemplates.size)
+        assertEquals(2, allTemplates.single().exercises.size)
+
+        val allSessions = sessions.sessions().first()
+        assertEquals(1, allSessions.size)
+        val session = allSessions.single()
+        assertEquals(2, session.exercises.size)
+        assertEquals(2, session.exercises[0].sets.size)
+        assertEquals(1, session.exercises[1].sets.size)
+    }
+
+    @Test
     fun `legacy nutrition-only ZIP imports fine and reports zero training data`() = runTest {
         val zip = zipOf(
             "food_entries.csv" to """
