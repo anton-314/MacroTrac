@@ -3,6 +3,7 @@ package dev.antonlammers.macrotrac.data.repository
 import android.content.Context
 import androidx.core.content.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.antonlammers.macrotrac.domain.model.StatCardType
 import dev.antonlammers.macrotrac.domain.repository.SettingsRepository
 import javax.inject.Inject
 
@@ -19,8 +20,22 @@ class SettingsRepositoryImpl @Inject constructor(
         prefs.edit { putBoolean(KEY_REMINDER_ENABLED, enabled) }
     }
 
+    override suspend fun statsCardOrder(): List<StatCardType> {
+        val raw = prefs.getString(KEY_STATS_CARD_ORDER, null) ?: return StatCardType.DEFAULT_ORDER
+        val saved = raw.split(",").mapNotNull { StatCardType.parse(it) }
+        // Any card type added after this order was saved (or dropped by the parse above) is
+        // appended at the end, so it still shows up instead of silently disappearing.
+        val missing = StatCardType.DEFAULT_ORDER.filter { it !in saved }
+        return saved + missing
+    }
+
+    override suspend fun setStatsCardOrder(order: List<StatCardType>) {
+        prefs.edit { putString(KEY_STATS_CARD_ORDER, order.joinToString(",") { it.name }) }
+    }
+
     private companion object {
         const val PREFS_NAME = "macrotrac_settings"
         const val KEY_REMINDER_ENABLED = "meal_reminder_enabled"
+        const val KEY_STATS_CARD_ORDER = "stats_card_order"
     }
 }

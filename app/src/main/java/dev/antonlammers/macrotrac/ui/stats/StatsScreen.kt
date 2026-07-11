@@ -11,15 +11,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -38,6 +42,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
@@ -49,6 +54,8 @@ import kotlin.math.abs
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import dev.antonlammers.macrotrac.domain.model.StatCardType
+import dev.antonlammers.macrotrac.ui.components.DragReorderColumn
 import dev.antonlammers.macrotrac.ui.theme.CalorieColor
 import dev.antonlammers.macrotrac.ui.theme.ProteinColor
 import dev.antonlammers.macrotrac.ui.theme.TagHealthyColor
@@ -95,165 +102,118 @@ fun StatsScreen(
                 }
             }
 
-            // Calorie chart
-            Card(
+            // Chart cards — user-orderable via drag handle (spec addendum: consistent with the
+            // workout module's drag-to-reorder pattern).
+            DragReorderColumn(
+                items = state.cardOrder,
+                key = { it },
+                onMove = statsViewModel::moveCard,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Kalorien", style = MaterialTheme.typography.titleSmall)
-                    if (state.caloriePoints.isEmpty() || state.caloriePoints.all { it.value == 0.0 }) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().height(80.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                "Noch keine Einträge",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) { _, card, rowModifier, dragHandleModifier, isDragging ->
+                when (card) {
+                    StatCardType.CALORIES -> ChartCard("Kalorien", rowModifier, dragHandleModifier, isDragging) {
+                        if (state.caloriePoints.isEmpty() || state.caloriePoints.all { it.value == 0.0 }) {
+                            ChartEmptyHint("Noch keine Einträge")
+                        } else {
+                            BarChart(
+                                points = state.caloriePoints,
+                                goalValue = state.goalKcal,
+                                barColor = CalorieColor,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                goalColor = MaterialTheme.colorScheme.primary,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                    } else {
-                        BarChart(
-                            points = state.caloriePoints,
-                            goalValue = state.goalKcal,
-                            barColor = CalorieColor,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                            goalColor = MaterialTheme.colorScheme.primary,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                     }
-                }
-            }
-
-            // Clean-eating chart
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                    StatCardType.CLEAN_EATING -> ChartCard(
+                        title = "Clean-Ernährung",
+                        rowModifier = rowModifier,
+                        dragHandleModifier = dragHandleModifier,
+                        isDragging = isDragging,
+                        trailing = {
+                            state.overallCleanPercent?.let { pct ->
+                                Text(
+                                    "Ø $pct %",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        },
                     ) {
-                        Text("Clean-Ernährung", style = MaterialTheme.typography.titleSmall)
-                        state.overallCleanPercent?.let { pct ->
-                            Text(
-                                "Ø $pct %",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        if (state.overallCleanPercent == null) {
+                            ChartEmptyHint("Noch keine getaggten Einträge")
+                        } else {
+                            BarChart(
+                                points = state.cleanPoints,
+                                goalValue = 0.0,
+                                fixedMaxValue = 100.0,
+                                barColor = TagHealthyColor,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                goalColor = MaterialTheme.colorScheme.primary,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
-                    if (state.overallCleanPercent == null) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().height(80.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                "Noch keine getaggten Einträge",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    StatCardType.WEIGHT -> ChartCard("Gewicht", rowModifier, dragHandleModifier, isDragging) {
+                        val weight = state.weight
+                        if (!weight.hasData) {
+                            ChartEmptyHint("Noch keine Gewichtsdaten")
+                        } else {
+                            WeightSummary(weight)
+                            WeightChart(
+                                data = weight,
+                                range = state.timeRange,
+                                rawColor = ProteinColor,
+                                trendColor = MaterialTheme.colorScheme.tertiary,
+                                targetColor = MaterialTheme.colorScheme.primary,
+                                gridColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                    } else {
-                        CleanBarChart(
-                            points = state.cleanPoints,
-                            barColor = TagHealthyColor,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                     }
-                }
-            }
-
-            // Weight chart
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Gewicht", style = MaterialTheme.typography.titleSmall)
-                    val weight = state.weight
-                    if (!weight.hasData) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().height(80.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                "Noch keine Gewichtsdaten",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    StatCardType.TRAINING_FREQUENCY -> ChartCard("Trainingsfrequenz", rowModifier, dragHandleModifier, isDragging) {
+                        if (state.frequencyPoints.isEmpty() || state.frequencyPoints.all { it.value == 0.0 }) {
+                            ChartEmptyHint("Noch keine Einheiten")
+                        } else {
+                            BarChart(
+                                points = state.frequencyPoints,
+                                goalValue = 0.0,
+                                barColor = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                goalColor = MaterialTheme.colorScheme.primary,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                    } else {
-                        WeightSummary(weight)
-                        WeightChart(
-                            data = weight,
-                            range = state.timeRange,
-                            rawColor = ProteinColor,
-                            trendColor = MaterialTheme.colorScheme.tertiary,
-                            targetColor = MaterialTheme.colorScheme.primary,
-                            gridColor = MaterialTheme.colorScheme.surfaceVariant,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                     }
-                }
-            }
-
-            // Training frequency
-            ChartCard("Trainingsfrequenz") {
-                if (state.frequencyPoints.isEmpty() || state.frequencyPoints.all { it.value == 0.0 }) {
-                    ChartEmptyHint("Noch keine Einheiten")
-                } else {
-                    BarChart(
-                        points = state.frequencyPoints,
-                        goalValue = 0.0,
-                        barColor = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        goalColor = MaterialTheme.colorScheme.primary,
-                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            // Strength progression (per exercise)
-            ChartCard("Kraftverlauf") {
-                if (state.strengthExercises.isEmpty()) {
-                    ChartEmptyHint("Noch keine Trainingsdaten")
-                } else {
-                    ExerciseSelector(
-                        exercises = state.strengthExercises,
-                        selectedId = state.selectedExerciseId,
-                        onSelect = statsViewModel::setSelectedExercise,
-                    )
-                    if (!state.strength.hasData) {
-                        ChartEmptyHint("Für diese Übung keine Daten im Zeitraum")
-                    } else {
-                        val data = state.strength
-                        val range = state.timeRange
-                        val tickDates = remember(data.rangeStart, data.rangeEnd, range) {
-                            weightTickDates(data.rangeStart, data.rangeEnd, range)
+                    StatCardType.STRENGTH -> ChartCard("Kraftverlauf", rowModifier, dragHandleModifier, isDragging) {
+                        if (state.strengthExercises.isEmpty()) {
+                            ChartEmptyHint("Noch keine Trainingsdaten")
+                        } else {
+                            ExerciseSelector(
+                                exercises = state.strengthExercises,
+                                selectedId = state.selectedExerciseId,
+                                onSelect = statsViewModel::setSelectedExercise,
+                            )
+                            if (!state.strength.hasData) {
+                                ChartEmptyHint("Für diese Übung keine Daten im Zeitraum")
+                            } else {
+                                val data = state.strength
+                                val range = state.timeRange
+                                val tickDates = remember(data.rangeStart, data.rangeEnd, range) {
+                                    weightTickDates(data.rangeStart, data.rangeEnd, range)
+                                }
+                                val tickFmt = remember(range) { weightTickFormatter(range) }
+                                StrengthChart(
+                                    data = data,
+                                    tickDates = tickDates,
+                                    tickFormatter = tickFmt,
+                                    lineColor = MaterialTheme.colorScheme.primary,
+                                    gridColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
-                        val tickFmt = remember(range) { weightTickFormatter(range) }
-                        StrengthChart(
-                            data = data,
-                            tickDates = tickDates,
-                            tickFormatter = tickFmt,
-                            lineColor = MaterialTheme.colorScheme.primary,
-                            gridColor = MaterialTheme.colorScheme.surfaceVariant,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                     }
                 }
             }
@@ -265,9 +225,15 @@ fun StatsScreen(
 }
 
 /**
- * Dynamic-scale bar chart with rounded tops (the Canvas clips the bottom corners). An optional dashed
- * goal line is drawn when [goalValue] > 0 — shared by the calorie chart (goal = kcal target) and the
- * training-frequency chart (no goal line).
+ * Bar chart with rounded tops, shared by every bar-based chart on the screen (calorie, clean-eating,
+ * training-frequency) so their corner styling never drifts apart again. An optional dashed goal line
+ * is drawn when [goalValue] > 0. The scale is dynamic (max of the data and [goalValue]) unless
+ * [fixedMaxValue] is given — the clean-eating chart pins it to 100 so its axis always reads as a
+ * percentage share, not a dynamic range.
+ *
+ * The rounded top is drawn by extending the bar's rect past the baseline and letting [clipRect] cut
+ * the overshoot back off at the Canvas edge — without that explicit clip the overshoot bleeds past
+ * the chart into the labels below (Compose's `Canvas` does not clip overflow on its own).
  */
 @Composable
 private fun BarChart(
@@ -277,8 +243,9 @@ private fun BarChart(
     trackColor: Color,
     goalColor: Color,
     labelColor: Color,
+    fixedMaxValue: Double? = null,
 ) {
-    val maxValue = maxOf(points.maxOf { it.value }, goalValue, 1.0).toFloat()
+    val maxValue = (fixedMaxValue ?: maxOf(points.maxOf { it.value }, goalValue, 1.0)).toFloat()
     val labelStep = when {
         points.size <= 8 -> 1
         points.size <= 16 -> 2
@@ -287,83 +254,37 @@ private fun BarChart(
 
     Column {
         Canvas(modifier = Modifier.fillMaxWidth().height(160.dp)) {
-            val barWidth = size.width / points.size
-            val pad = (barWidth * 0.12f).coerceAtLeast(1.5.dp.toPx())
+            clipRect {
+                val barWidth = size.width / points.size
+                val pad = (barWidth * 0.12f).coerceAtLeast(1.5.dp.toPx())
 
-            points.forEachIndexed { i, point ->
-                val fillFraction = (point.value.toFloat() / maxValue).coerceIn(0f, 1f)
-                val fillHeight = fillFraction * size.height
-                val x = i * barWidth
+                points.forEachIndexed { i, point ->
+                    val fillFraction = (point.value.toFloat() / maxValue).coerceIn(0f, 1f)
+                    val fillHeight = fillFraction * size.height
+                    val x = i * barWidth
 
-                drawRect(trackColor, Offset(x + pad, 0f), Size(barWidth - pad * 2, size.height))
-                if (fillHeight > 0f) {
-                    val radius = 4.dp.toPx().coerceAtMost(minOf((barWidth - pad * 2) / 2f, fillHeight))
-                    // Extend past the baseline so only the top corners round; the Canvas clips the rest.
-                    drawRoundRect(
-                        barColor,
-                        topLeft = Offset(x + pad, size.height - fillHeight),
-                        size = Size(barWidth - pad * 2, fillHeight + radius),
-                        cornerRadius = CornerRadius(radius, radius),
-                    )
-                }
-            }
-
-            if (goalValue > 0f) {
-                val goalY = size.height - (goalValue.toFloat() / maxValue * size.height).coerceIn(0f, size.height)
-                drawLine(
-                    goalColor,
-                    Offset(0f, goalY),
-                    Offset(size.width, goalY),
-                    strokeWidth = 1.5.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f)),
-                )
-            }
-        }
-
-        Row(modifier = Modifier.fillMaxWidth()) {
-            points.forEachIndexed { i, point ->
-                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    if (i % labelStep == 0) {
-                        Text(
-                            point.label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = labelColor,
-                            maxLines = 1,
+                    drawRect(trackColor, Offset(x + pad, 0f), Size(barWidth - pad * 2, size.height))
+                    if (fillHeight > 0f) {
+                        val radius = 4.dp.toPx().coerceAtMost(minOf((barWidth - pad * 2) / 2f, fillHeight))
+                        // Extend past the baseline so only the top corners round; clipRect above cuts the rest.
+                        drawRoundRect(
+                            barColor,
+                            topLeft = Offset(x + pad, size.height - fillHeight),
+                            size = Size(barWidth - pad * 2, fillHeight + radius),
+                            cornerRadius = CornerRadius(radius, radius),
                         )
                     }
                 }
-            }
-        }
-    }
-}
 
-/** Fixed 0–100 % bar chart for the clean-eating share, with a dashed target line. */
-@Composable
-private fun CleanBarChart(
-    points: List<ChartPoint>,
-    barColor: Color,
-    trackColor: Color,
-    labelColor: Color,
-) {
-    val labelStep = when {
-        points.size <= 8 -> 1
-        points.size <= 16 -> 2
-        else -> (points.size / 6).coerceAtLeast(1)
-    }
-
-    Column {
-        Canvas(modifier = Modifier.fillMaxWidth().height(160.dp)) {
-            val barWidth = size.width / points.size
-            val pad = (barWidth * 0.12f).coerceAtLeast(1.5.dp.toPx())
-
-            points.forEachIndexed { i, point ->
-                val fillFraction = (point.value.toFloat() / 100f).coerceIn(0f, 1f)
-                val fillHeight = fillFraction * size.height
-                val x = i * barWidth
-
-                drawRect(trackColor, Offset(x + pad, 0f), Size(barWidth - pad * 2, size.height))
-                if (fillHeight > 0f) {
-                    drawRect(barColor, Offset(x + pad, size.height - fillHeight), Size(barWidth - pad * 2, fillHeight))
+                if (goalValue > 0f) {
+                    val goalY = size.height - (goalValue.toFloat() / maxValue * size.height).coerceIn(0f, size.height)
+                    drawLine(
+                        goalColor,
+                        Offset(0f, goalY),
+                        Offset(size.width, goalY),
+                        strokeWidth = 1.5.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f)),
+                    )
                 }
             }
         }
@@ -517,18 +438,42 @@ private fun WeightChart(
     }
 }
 
-/** Flat hairline chart card matching the existing stats cards; hosts a titled chart or empty hint. */
+/** One draggable chart card. [rowModifier]/[dragHandleModifier] come from the enclosing [DragReorderColumn]. */
 @Composable
-private fun ChartCard(title: String, content: @Composable () -> Unit) {
+private fun ChartCard(
+    title: String,
+    rowModifier: Modifier,
+    dragHandleModifier: Modifier,
+    isDragging: Boolean,
+    trailing: (@Composable () -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = rowModifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDragging) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(
+                        Icons.Rounded.DragIndicator,
+                        contentDescription = "Ziehen zum Verschieben",
+                        tint = MaterialTheme.colorScheme.outline,
+                        modifier = dragHandleModifier.size(20.dp),
+                    )
+                    Text(title, style = MaterialTheme.typography.titleSmall)
+                }
+                trailing?.invoke()
+            }
             content()
         }
     }

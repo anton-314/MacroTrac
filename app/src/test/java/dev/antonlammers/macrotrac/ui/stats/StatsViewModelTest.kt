@@ -9,11 +9,13 @@ import dev.antonlammers.macrotrac.domain.model.FoodTag
 import dev.antonlammers.macrotrac.domain.model.MealCategory
 import dev.antonlammers.macrotrac.domain.model.SessionExercise
 import dev.antonlammers.macrotrac.domain.model.SetEntry
+import dev.antonlammers.macrotrac.domain.model.StatCardType
 import dev.antonlammers.macrotrac.domain.model.WeightEntry
 import dev.antonlammers.macrotrac.domain.model.WorkoutSession
 import dev.antonlammers.macrotrac.fake.FakeExerciseCatalogRepository
 import dev.antonlammers.macrotrac.fake.FakeFoodEntryRepository
 import dev.antonlammers.macrotrac.fake.FakeGoalRepository
+import dev.antonlammers.macrotrac.fake.FakeSettingsRepository
 import dev.antonlammers.macrotrac.fake.FakeWeightRepository
 import dev.antonlammers.macrotrac.fake.FakeWorkoutSessionRepository
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +40,7 @@ class StatsViewModelTest {
     private lateinit var goalRepo: FakeGoalRepository
     private lateinit var sessionRepo: FakeWorkoutSessionRepository
     private lateinit var catalogRepo: FakeExerciseCatalogRepository
+    private lateinit var settingsRepo: FakeSettingsRepository
     private lateinit var viewModel: StatsViewModel
 
     @Before
@@ -48,7 +51,8 @@ class StatsViewModelTest {
         goalRepo = FakeGoalRepository()
         sessionRepo = FakeWorkoutSessionRepository()
         catalogRepo = FakeExerciseCatalogRepository()
-        viewModel = StatsViewModel(foodRepo, weightRepo, goalRepo, sessionRepo, catalogRepo)
+        settingsRepo = FakeSettingsRepository()
+        viewModel = StatsViewModel(foodRepo, weightRepo, goalRepo, sessionRepo, catalogRepo, settingsRepo)
     }
 
     @After
@@ -247,6 +251,57 @@ class StatsViewModelTest {
             viewModel.setSelectedExercise("squat")
             while (state.selectedExerciseId != "squat") state = awaitItem()
             assertEquals(163.333, state.strength.samples.last().estimatedOneRepMaxKg, 0.01) // 140×(1+5/30)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // --- card order ---
+
+    @Test
+    fun `initial card order is the default`() = runTest {
+        viewModel.uiState.test {
+            assertEquals(StatCardType.DEFAULT_ORDER, awaitItem().cardOrder)
+        }
+    }
+
+    @Test
+    fun `moveCard reorders cards and persists`() = runTest {
+        viewModel.uiState.test {
+            awaitItem() // initial
+
+            viewModel.moveCard(0, 1)
+            val state = awaitItem()
+
+            val expected = StatCardType.DEFAULT_ORDER.toMutableList()
+                .apply { val tmp = this[0]; this[0] = this[1]; this[1] = tmp }
+            assertEquals(expected, state.cardOrder)
+            assertEquals(expected, settingsRepo.statsCardOrder())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `moveCard out of range is a no-op`() = runTest {
+        viewModel.uiState.test {
+            val initial = awaitItem()
+
+            viewModel.moveCard(0, -1)
+            viewModel.moveCard(0, 99)
+
+            expectNoEvents()
+            assertEquals(StatCardType.DEFAULT_ORDER, initial.cardOrder)
+        }
+    }
+
+    @Test
+    fun `saved card order is restored on start`() = runTest {
+        val saved = listOf(StatCardType.STRENGTH, StatCardType.CALORIES, StatCardType.WEIGHT, StatCardType.CLEAN_EATING, StatCardType.TRAINING_FREQUENCY)
+        settingsRepo.setStatsCardOrder(saved)
+        val restored = StatsViewModel(foodRepo, weightRepo, goalRepo, sessionRepo, catalogRepo, settingsRepo)
+
+        restored.uiState.test {
+            var state = awaitItem()
+            while (state.cardOrder != saved) state = awaitItem()
             cancelAndIgnoreRemainingEvents()
         }
     }

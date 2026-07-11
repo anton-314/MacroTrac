@@ -6,10 +6,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.antonlammers.macrotrac.domain.WorkoutMetrics
 import dev.antonlammers.macrotrac.domain.model.ExerciseType
 import dev.antonlammers.macrotrac.domain.model.FoodEntry
+import dev.antonlammers.macrotrac.domain.model.StatCardType
 import dev.antonlammers.macrotrac.domain.model.WeightEntry
 import dev.antonlammers.macrotrac.domain.repository.ExerciseCatalogRepository
 import dev.antonlammers.macrotrac.domain.repository.FoodEntryRepository
 import dev.antonlammers.macrotrac.domain.repository.GoalRepository
+import dev.antonlammers.macrotrac.domain.repository.SettingsRepository
 import dev.antonlammers.macrotrac.domain.repository.WeightRepository
 import dev.antonlammers.macrotrac.domain.repository.WorkoutSessionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,6 +52,8 @@ data class StatsUiState(
     /** The exercise the strength chart is showing (defaults to the first option). */
     val selectedExerciseId: String? = null,
     val strength: StrengthChartData = StrengthChartData(),
+    /** User-customizable order of the chart cards (drag-to-reorder). */
+    val cardOrder: List<StatCardType> = StatCardType.DEFAULT_ORDER,
 )
 
 @HiltViewModel
@@ -59,10 +63,12 @@ class StatsViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val workoutSessionRepository: WorkoutSessionRepository,
     private val exerciseCatalogRepository: ExerciseCatalogRepository,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val _timeRange = MutableStateFlow(TimeRange.WEEK)
     private val _selectedExerciseId = MutableStateFlow<String?>(null)
+    private val _cardOrder = MutableStateFlow(StatCardType.DEFAULT_ORDER)
 
     // All weigh-ins (loaded once) — used to resolve body weight for bodyweight-exercise 1RMs, which
     // may reference a weigh-in from before the visible range's start (spec §3.4 "last known").
@@ -70,9 +76,11 @@ class StatsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { _allWeights.value = weightRepository.allEntries() }
+        viewModelScope.launch { _cardOrder.value = settingsRepository.statsCardOrder() }
     }
 
-    val uiState: StateFlow<StatsUiState> = combine(_timeRange, _selectedExerciseId) { range, selectedId -> range to selectedId }
+    private val chartState: StateFlow<StatsUiState> =
+        combine(_timeRange, _selectedExerciseId) { range, selectedId -> range to selectedId }
         .flatMapLatest { (range, selectedId) ->
             val (from, to) = range.dateRange()
             combine(
@@ -124,9 +132,28 @@ class StatsViewModel @Inject constructor(
             initialValue = StatsUiState(),
         )
 
+    // Recombined on top of chartState so a reorder never re-triggers the (expensive) repository
+    // re-subscription above — only the card order itself changes.
+    val uiState: StateFlow<StatsUiState> = combine(chartState, _cardOrder) { state, order ->
+        state.copy(cardOrder = order)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = StatsUiState(),
+    )
+
     fun setTimeRange(range: TimeRange) = _timeRange.update { range }
 
     fun setSelectedExercise(stableId: String) = _selectedExerciseId.update { stableId }
+
+    /** Swap two cards — called repeatedly (once per adjacent step) while a card is dragged into place. */
+    fun moveCard(from: Int, to: Int) {
+        val order = _cardOrder.value
+        if (from !in order.indices || to !in order.indices) return
+        val reordered = order.toMutableList().apply { val tmp = this[from]; this[from] = this[to]; this[to] = tmp }
+        _cardOrder.value = reordered
+        viewModelScope.launch { settingsRepository.setStatsCardOrder(reordered) }
+    }
 
     /**
      * Buckets [entries] over [range] (per day for WEEK/MONTH, per month for YEAR) and maps each
