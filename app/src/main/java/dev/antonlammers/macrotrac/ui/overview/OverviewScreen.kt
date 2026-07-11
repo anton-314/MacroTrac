@@ -285,6 +285,7 @@ fun OverviewScreen(
 
                         SwipeToDismissBox(
                             state = dismissState,
+                            modifier = Modifier.clip(RoundedCornerShape(18.dp)),
                             enableDismissFromStartToEnd = true,
                             backgroundContent = {
                                 val bgColor = when (dismissState.targetValue) {
@@ -320,7 +321,6 @@ fun OverviewScreen(
                         ) {
                             FoodEntryRow(entry = entry)
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                 }
             }
