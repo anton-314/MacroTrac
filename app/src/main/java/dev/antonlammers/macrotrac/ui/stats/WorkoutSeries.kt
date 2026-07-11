@@ -97,6 +97,19 @@ internal object WorkoutSeries {
     }
 
     /**
+     * All-time strength progression for the exercise-detail mini-chart: one sample per session-day
+     * (the day's best estimated 1RM) across **all** [sessions] provided, date-ascending — the same
+     * per-day aggregation the WEEK/MONTH bucketing uses, but not clamped to a [TimeRange] window.
+     */
+    fun strengthHistory(
+        sessions: List<WorkoutSession>,
+        exerciseStableId: String,
+        typeOf: (String) -> ExerciseType,
+        bodyWeightForDate: (LocalDate) -> Double?,
+    ): List<StrengthSample> =
+        strengthSamples(TimeRange.WEEK, sessions, exerciseStableId, typeOf, bodyWeightForDate)
+
+    /**
      * Padded y-axis bounds covering all sample values. Padding is at least 0.5 kg; bounds round
      * outward to the nearest 0.5 kg so gridline labels read cleanly. Returns 0..0 when empty.
      */

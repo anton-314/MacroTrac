@@ -240,9 +240,16 @@ fun StatsScreen(
                     if (!state.strength.hasData) {
                         ChartEmptyHint("Für diese Übung keine Daten im Zeitraum")
                     } else {
+                        val data = state.strength
+                        val range = state.timeRange
+                        val tickDates = remember(data.rangeStart, data.rangeEnd, range) {
+                            weightTickDates(data.rangeStart, data.rangeEnd, range)
+                        }
+                        val tickFmt = remember(range) { weightTickFormatter(range) }
                         StrengthChart(
-                            data = state.strength,
-                            range = state.timeRange,
+                            data = data,
+                            tickDates = tickDates,
+                            tickFormatter = tickFmt,
                             lineColor = MaterialTheme.colorScheme.primary,
                             gridColor = MaterialTheme.colorScheme.surfaceVariant,
                             labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -560,84 +567,6 @@ private fun ExerciseSelector(
     }
 }
 
-/**
- * Time-proportional strength (estimated-1RM) line chart, mirroring the weight chart: x from each
- * sample's real date within the range, y from a padded kg scale with min/mid/max gridline labels.
- */
-@Composable
-private fun StrengthChart(
-    data: StrengthChartData,
-    range: TimeRange,
-    lineColor: Color,
-    gridColor: Color,
-    labelColor: Color,
-) {
-    val tickDates = remember(data.rangeStart, data.rangeEnd, range) {
-        weightTickDates(data.rangeStart, data.rangeEnd, range)
-    }
-    val tickFmt = remember(range) { weightTickFormatter(range) }
-
-    Canvas(modifier = Modifier.fillMaxWidth().height(180.dp)) {
-        val leftGutter = 36.dp.toPx()
-        val bottomGutter = 18.dp.toPx()
-        val plotLeft = leftGutter
-        val plotTop = 6.dp.toPx()
-        val plotWidth = size.width - leftGutter
-        val plotHeight = size.height - bottomGutter - plotTop
-
-        val startEpoch = data.rangeStart.toEpochDay()
-        val daySpan = (data.rangeEnd.toEpochDay() - startEpoch).coerceAtLeast(1L)
-        val kgSpan = (data.maxKg - data.minKg).takeIf { it > 0.0 } ?: 1.0
-
-        fun xForDate(d: LocalDate): Float =
-            plotLeft + ((d.toEpochDay() - startEpoch).toFloat() / daySpan) * plotWidth
-        fun yForKg(kg: Double): Float =
-            plotTop + (1f - ((kg - data.minKg) / kgSpan).toFloat()) * plotHeight
-
-        val labelPaint = android.graphics.Paint().apply {
-            color = labelColor.toArgb()
-            textSize = 10.sp.toPx()
-            isAntiAlias = true
-        }
-
-        labelPaint.textAlign = android.graphics.Paint.Align.RIGHT
-        listOf(data.minKg, (data.minKg + data.maxKg) / 2.0, data.maxKg).forEach { kg ->
-            val y = yForKg(kg)
-            drawLine(gridColor, Offset(plotLeft, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
-            drawContext.canvas.nativeCanvas.drawText(
-                formatKg(kg), plotLeft - 4.dp.toPx(), y + 3.5.dp.toPx(), labelPaint,
-            )
-        }
-
-        labelPaint.textAlign = android.graphics.Paint.Align.CENTER
-        tickDates.forEach { d ->
-            drawContext.canvas.nativeCanvas.drawText(
-                d.format(tickFmt), xForDate(d).coerceIn(plotLeft, size.width), size.height, labelPaint,
-            )
-        }
-
-        if (data.samples.size >= 2) {
-            val path = Path().apply {
-                moveTo(xForDate(data.samples.first().date), yForKg(data.samples.first().estimatedOneRepMaxKg))
-                data.samples.drop(1).forEach { lineTo(xForDate(it.date), yForKg(it.estimatedOneRepMaxKg)) }
-            }
-            drawPath(
-                path, lineColor,
-                style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
-            )
-        }
-        data.samples.forEach {
-            drawCircle(lineColor, 3.5.dp.toPx(), Offset(xForDate(it.date), yForKg(it.estimatedOneRepMaxKg)))
-        }
-    }
-}
-
-/** One decimal at most; whole numbers without a decimal point (72 / 72.5). */
-private fun formatKg(kg: Double): String {
-    val rounded = Math.round(kg * 10) / 10.0
-    return if (rounded % 1.0 == 0.0) rounded.toInt().toString() else rounded.toString()
-}
-
 private fun weightTickFormatter(range: TimeRange): DateTimeFormatter = when (range) {
     TimeRange.WEEK -> DateTimeFormatter.ofPattern("EE", Locale("de"))
     TimeRange.MONTH -> DateTimeFormatter.ofPattern("d.M.", Locale("de"))
@@ -651,8 +580,5 @@ private fun weightTickDates(start: LocalDate, end: LocalDate, range: TimeRange):
         TimeRange.MONTH -> 5
         TimeRange.YEAR -> 6
     }
-    val span = (end.toEpochDay() - start.toEpochDay()).coerceAtLeast(1L)
-    return (0 until count)
-        .map { i -> LocalDate.ofEpochDay(start.toEpochDay() + span * i / (count - 1)) }
-        .distinct()
+    return evenlySpacedDates(start, end, count)
 }

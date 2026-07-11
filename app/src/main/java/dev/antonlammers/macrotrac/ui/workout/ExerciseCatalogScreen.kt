@@ -67,7 +67,7 @@ import dev.antonlammers.macrotrac.domain.model.Exercise
 import dev.antonlammers.macrotrac.domain.model.ExerciseType
 import dev.antonlammers.macrotrac.domain.model.Mechanic
 import dev.antonlammers.macrotrac.ui.components.NumericTextField
-import java.util.Locale
+import dev.antonlammers.macrotrac.ui.navigation.Screen
 import kotlinx.coroutines.launch
 
 /**
@@ -90,7 +90,6 @@ fun ExerciseCatalogScreen(
 
     var showCreateSheet by remember { mutableStateOf(false) }
     var exerciseToEdit by remember { mutableStateOf<Exercise?>(null) }
-    var exerciseDetail by remember { mutableStateOf<Exercise?>(null) }
 
     if (showCreateSheet) {
         ExerciseEditorSheet(
@@ -127,10 +126,6 @@ fun ExerciseCatalogScreen(
                 exerciseToEdit = null
             },
         )
-    }
-
-    exerciseDetail?.let { exercise ->
-        ExerciseDetailSheet(exercise = exercise, onDismiss = { exerciseDetail = null })
     }
 
     Scaffold(
@@ -189,7 +184,7 @@ fun ExerciseCatalogScreen(
                         if (exercise.isCustom) {
                             SwipeableCustomExerciseRow(
                                 exercise = exercise,
-                                onClick = { exerciseDetail = exercise },
+                                onClick = { navController.navigate(Screen.ExerciseDetail.forExercise(exercise.stableId)) },
                                 onEdit = { exerciseToEdit = exercise },
                                 onDelete = {
                                     viewModel.deletePending(exercise)
@@ -207,7 +202,10 @@ fun ExerciseCatalogScreen(
                                 },
                             )
                         } else {
-                            ExerciseRowContent(exercise = exercise, onClick = { exerciseDetail = exercise })
+                            ExerciseRowContent(
+                                exercise = exercise,
+                                onClick = { navController.navigate(Screen.ExerciseDetail.forExercise(exercise.stableId)) },
+                            )
                         }
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
@@ -387,67 +385,6 @@ private fun EmptyHint(text: String) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Read-only detail sheet (catalog + custom)
-// ─────────────────────────────────────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ExerciseDetailSheet(exercise: Exercise, onDismiss: () -> Unit) {
-    val sheetState = rememberModalBottomSheetState()
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(exercise.name, style = MaterialTheme.typography.titleLarge)
-
-            DetailField("TYP", exercise.type.displayName())
-            exercise.primaryMuscles.takeIf { it.isNotEmpty() }?.let {
-                DetailField("MUSKELN", it.joinToString(", ") { m -> m.titleCase() })
-            }
-            exercise.equipment?.let { DetailField("EQUIPMENT", it.titleCase()) }
-            exercise.mechanic?.let { DetailField("MECHANIK", it.displayName()) }
-            exercise.category?.let { DetailField("KATEGORIE", it.titleCase()) }
-
-            if (exercise.instructions.isNotEmpty()) {
-                Text(
-                    "ANLEITUNG",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                exercise.instructions.forEachIndexed { index, line ->
-                    Text(
-                        "${index + 1}. $line",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DetailField(label: String, value: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(value, style = MaterialTheme.typography.bodyLarge)
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Custom-exercise editor sheet (create / edit) — CustomFoodDialog pattern
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -567,18 +504,4 @@ private fun Exercise.detailLine(): String {
         muscles.takeIf { it.isNotEmpty() },
         equipment?.titleCase(),
     ).joinToString(" · ").ifEmpty { type.displayName() }
-}
-
-private fun String.titleCase(): String = split(" ").joinToString(" ") { word ->
-    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ENGLISH) else it.toString() }
-}
-
-private fun ExerciseType.displayName(): String = when (this) {
-    ExerciseType.WEIGHT_REPS -> "Gewicht × Reps"
-    ExerciseType.BODYWEIGHT -> "Körpergewicht"
-}
-
-private fun Mechanic.displayName(): String = when (this) {
-    Mechanic.COMPOUND -> "Verbund"
-    Mechanic.ISOLATION -> "Isolation"
 }

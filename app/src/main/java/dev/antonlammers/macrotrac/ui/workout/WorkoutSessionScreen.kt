@@ -63,6 +63,7 @@ import dev.antonlammers.macrotrac.domain.model.SetEntry
 import dev.antonlammers.macrotrac.domain.model.SetType
 import dev.antonlammers.macrotrac.notification.RestTimerScheduler
 import dev.antonlammers.macrotrac.ui.components.NumericTextField
+import dev.antonlammers.macrotrac.ui.navigation.Screen
 
 /**
  * The live-session screen (spec §3.3, grundgerüst). Renders [WorkoutSessionViewModel]'s ui state:
@@ -181,6 +182,7 @@ fun WorkoutSessionScreen(
                     val index = state.exercises.indexOfFirst { it.id == exercise.id }
                     ExerciseCard(
                         exercise = exercise,
+                        onOpenDetail = { navController.navigate(Screen.ExerciseDetail.forExercise(exercise.exerciseStableId)) },
                         onRemove = { viewModel.removeExercise(index) },
                         onAddSet = { viewModel.addSet(index) },
                         onRemoveSet = { setIndex -> viewModel.removeSet(index, setIndex) },
@@ -215,6 +217,7 @@ fun WorkoutSessionScreen(
 @Composable
 private fun ExerciseCard(
     exercise: SessionExerciseUi,
+    onOpenDetail: () -> Unit,
     onRemove: () -> Unit,
     onAddSet: () -> Unit,
     onRemoveSet: (Int) -> Unit,
@@ -237,7 +240,11 @@ private fun ExerciseCard(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(exercise.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Text(
+                exercise.name,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f).clickable(onClick = onOpenDetail),
+            )
             RestDurationChip(restSeconds = exercise.restSeconds, onRestChange = onRestChange)
             IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Rounded.Close, contentDescription = "Übung entfernen", tint = MaterialTheme.colorScheme.outline)

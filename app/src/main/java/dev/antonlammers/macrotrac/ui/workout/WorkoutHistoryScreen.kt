@@ -23,7 +23,6 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -55,6 +54,7 @@ import androidx.navigation.NavController
 import dev.antonlammers.macrotrac.domain.model.ExerciseType
 import dev.antonlammers.macrotrac.domain.model.SetEntry
 import dev.antonlammers.macrotrac.ui.components.NumericTextField
+import dev.antonlammers.macrotrac.ui.navigation.Screen
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
@@ -118,6 +118,7 @@ fun WorkoutHistoryScreen(
                     item(key = "session-${session.id}") {
                         SessionCard(
                             session = session,
+                            onOpenDetail = { stableId -> navController.navigate(Screen.ExerciseDetail.forExercise(stableId)) },
                             onSetWeight = { ei, si, w -> viewModel.setWeight(session.id, ei, si, w) },
                             onSetReps = { ei, si, r -> viewModel.setReps(session.id, ei, si, r) },
                             onSetType = { ei, si, t -> viewModel.setSetType(session.id, ei, si, t) },
@@ -302,6 +303,7 @@ private fun EmptyDayHint() {
 @Composable
 private fun SessionCard(
     session: HistorySessionUi,
+    onOpenDetail: (String) -> Unit,
     onSetWeight: (Int, Int, Double) -> Unit,
     onSetReps: (Int, Int, Int) -> Unit,
     onSetType: (Int, Int, dev.antonlammers.macrotrac.domain.model.SetType) -> Unit,
@@ -331,6 +333,7 @@ private fun SessionCard(
         session.exercises.forEachIndexed { exerciseIndex, exercise ->
             ExerciseBlock(
                 exercise = exercise,
+                onOpenDetail = { onOpenDetail(exercise.exerciseStableId) },
                 onSetWeight = { si, w -> onSetWeight(exerciseIndex, si, w) },
                 onSetReps = { si, r -> onSetReps(exerciseIndex, si, r) },
                 onSetType = { si, t -> onSetType(exerciseIndex, si, t) },
@@ -344,6 +347,7 @@ private fun SessionCard(
 @Composable
 private fun ExerciseBlock(
     exercise: HistoryExerciseUi,
+    onOpenDetail: () -> Unit,
     onSetWeight: (Int, Double) -> Unit,
     onSetReps: (Int, Int) -> Unit,
     onSetType: (Int, dev.antonlammers.macrotrac.domain.model.SetType) -> Unit,
@@ -353,7 +357,11 @@ private fun ExerciseBlock(
     val weightCaption = if (exercise.type == ExerciseType.BODYWEIGHT) "ZUSATZ" else "KG"
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(exercise.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Text(
+                exercise.name,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f).clickable(onClick = onOpenDetail),
+            )
             if (exercise.isPersonalRecord) PrBadge()
         }
 
@@ -421,20 +429,6 @@ private fun HistorySetRow(
         IconButton(onClick = onRemove, modifier = Modifier.width(40.dp)) {
             Icon(Icons.Rounded.Delete, contentDescription = "Satz löschen", tint = MaterialTheme.colorScheme.outline)
         }
-    }
-}
-
-/** The monochrome PR marker (spec §3.5/§6): an accent trophy glyph + mono "PR" label. */
-@Composable
-private fun PrBadge() {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Icon(
-            Icons.Rounded.EmojiEvents,
-            contentDescription = "Persönlicher Rekord",
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(16.dp),
-        )
-        Text("PR", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
     }
 }
 

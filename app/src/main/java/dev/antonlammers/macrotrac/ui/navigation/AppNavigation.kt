@@ -37,6 +37,7 @@ import dev.antonlammers.macrotrac.ui.overview.OverviewScreen
 import dev.antonlammers.macrotrac.ui.settings.SettingsScreen
 import dev.antonlammers.macrotrac.ui.stats.StatsScreen
 import dev.antonlammers.macrotrac.ui.workout.ExerciseCatalogScreen
+import dev.antonlammers.macrotrac.ui.workout.ExerciseDetailScreen
 import dev.antonlammers.macrotrac.ui.workout.TemplateEditorScreen
 import dev.antonlammers.macrotrac.ui.workout.TemplatesScreen
 import dev.antonlammers.macrotrac.ui.workout.WorkoutHistoryScreen
@@ -51,6 +52,9 @@ sealed class Screen(val route: String) {
     object Workout : Screen("workout")
     object WorkoutHistory : Screen("workout_history")
     object ExerciseCatalog : Screen("exercise_catalog")
+    object ExerciseDetail : Screen("exercise_detail/{exerciseStableId}") {
+        fun forExercise(stableId: String) = "exercise_detail/$stableId"
+    }
     object TemplateEditor : Screen("template_editor/{templateId}") {
         /** id 0 opens the editor for a brand-new template. */
         fun forTemplate(templateId: Long) = "template_editor/$templateId"
@@ -100,6 +104,10 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             composable(Screen.Workout.route) { TemplatesScreen(navController) }
             composable(Screen.WorkoutHistory.route) { WorkoutHistoryScreen(navController) }
             composable(Screen.ExerciseCatalog.route) { ExerciseCatalogScreen(navController) }
+            composable(
+                route = Screen.ExerciseDetail.route,
+                arguments = listOf(navArgument("exerciseStableId") { type = NavType.StringType }),
+            ) { ExerciseDetailScreen(navController) }
             composable(
                 route = Screen.TemplateEditor.route,
                 arguments = listOf(navArgument("templateId") { type = NavType.LongType }),

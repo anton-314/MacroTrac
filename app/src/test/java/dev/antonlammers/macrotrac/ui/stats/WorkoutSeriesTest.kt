@@ -120,6 +120,20 @@ class WorkoutSeriesTest {
         assertEquals(114.0, samples.single().estimatedOneRepMaxKg, 0.01)
     }
 
+    @Test
+    fun `strength history is per-day across all sessions regardless of span`() {
+        val sessions = listOf(
+            session("bench", LocalDate.of(2026, 1, 5), listOf(set(90.0, 5))),   // 105.0
+            session("bench", LocalDate.of(2026, 7, 20), listOf(set(100.0, 5))), // 116.67 (months later)
+            session("bench", LocalDate.of(2026, 7, 20), listOf(set(110.0, 3))), // same day, higher → day best
+        )
+
+        val samples = WorkoutSeries.strengthHistory(sessions, "bench", weightReps, noBodyWeight)
+
+        assertEquals(listOf(LocalDate.of(2026, 1, 5), LocalDate.of(2026, 7, 20)), samples.map { it.date })
+        assertEquals(121.0, samples[1].estimatedOneRepMaxKg, 0.01) // 110 × (1 + 3/30)
+    }
+
     // --- bounds ---
 
     @Test
