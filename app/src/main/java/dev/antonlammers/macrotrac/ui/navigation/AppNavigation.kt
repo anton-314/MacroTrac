@@ -5,19 +5,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.Flag
-import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.BarChart
-import androidx.compose.material.icons.rounded.Flag
-import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.FitnessCenter
+import androidx.compose.material.icons.rounded.Restaurant
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,9 +34,15 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dev.antonlammers.macrotrac.ui.addfood.AddFoodScreen
 import dev.antonlammers.macrotrac.ui.addfood.BarcodeScannerScreen
-import dev.antonlammers.macrotrac.ui.goals.GoalsScreen
 import dev.antonlammers.macrotrac.ui.overview.OverviewScreen
+import dev.antonlammers.macrotrac.ui.settings.SettingsScreen
 import dev.antonlammers.macrotrac.ui.stats.StatsScreen
+import dev.antonlammers.macrotrac.ui.workout.ExerciseCatalogScreen
+import dev.antonlammers.macrotrac.ui.workout.ExerciseDetailScreen
+import dev.antonlammers.macrotrac.ui.workout.TemplateEditorScreen
+import dev.antonlammers.macrotrac.ui.workout.TemplatesScreen
+import dev.antonlammers.macrotrac.ui.workout.WorkoutHistoryScreen
+import dev.antonlammers.macrotrac.ui.workout.WorkoutSessionScreen
 import java.time.LocalDate
 
 sealed class Screen(val route: String) {
@@ -42,9 +50,23 @@ sealed class Screen(val route: String) {
     object AddFood : Screen("add_food/{date}") {
         fun withDate(date: LocalDate) = "add_food/$date"
     }
-    object Goals : Screen("goals")
+    object Workout : Screen("workout")
+    object WorkoutHistory : Screen("workout_history")
+    object ExerciseCatalog : Screen("exercise_catalog")
+    object ExerciseDetail : Screen("exercise_detail/{exerciseStableId}") {
+        fun forExercise(stableId: String) = "exercise_detail/$stableId"
+    }
+    object TemplateEditor : Screen("template_editor/{templateId}") {
+        /** id 0 opens the editor for a brand-new template. */
+        fun forTemplate(templateId: Long) = "template_editor/$templateId"
+    }
+    object WorkoutSession : Screen("workout_session?templateId={templateId}") {
+        /** templateId 0 starts an empty session; a running session is always resumed regardless. */
+        fun start(templateId: Long = 0L) = "workout_session?templateId=$templateId"
+    }
     object BarcodeScanner : Screen("barcode_scanner")
     object Stats : Screen("stats")
+    object Settings : Screen("settings")
 }
 
 private data class BottomNavItem(
@@ -56,17 +78,27 @@ private data class BottomNavItem(
 
 // Active tab uses the filled (Rounded) icon variant, inactive the outline variant.
 private val bottomNavItems = listOf(
-    BottomNavItem(Screen.Overview, "Übersicht", Icons.Rounded.Home, Icons.Outlined.Home),
-    BottomNavItem(Screen.Goals, "Ziele", Icons.Rounded.Flag, Icons.Outlined.Flag),
+    BottomNavItem(Screen.Overview, "Ernährung", Icons.Rounded.Restaurant, Icons.Outlined.Restaurant),
+    BottomNavItem(Screen.Workout, "Training", Icons.Rounded.FitnessCenter, Icons.Outlined.FitnessCenter),
     BottomNavItem(Screen.Stats, "Statistik", Icons.Rounded.BarChart, Icons.Outlined.BarChart),
+    BottomNavItem(Screen.Settings, "Einstellungen", Icons.Rounded.Settings, Icons.Outlined.Settings),
 )
 
 @ExperimentalGetImage
 @Composable
-fun AppNavigation(navController: NavHostController = rememberNavController()) {
+fun AppNavigation(
+    navController: NavHostController = rememberNavController(),
+    openWorkoutSession: Boolean = false,
+) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val showBottomNav = bottomNavItems.any { it.screen.route == currentRoute }
+
+    // Tapping a rest-timer notification relaunches the app with this flag set — jump straight
+    // into the live session (which resumes the active one regardless of the templateId argument).
+    LaunchedEffect(openWorkoutSession) {
+        if (openWorkoutSession) navController.navigate(Screen.WorkoutSession.start(0))
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         NavHost(
@@ -79,9 +111,26 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 route = Screen.AddFood.route,
                 arguments = listOf(navArgument("date") { type = NavType.StringType }),
             ) { AddFoodScreen(navController) }
-            composable(Screen.Goals.route) { GoalsScreen(navController) }
+            composable(Screen.Workout.route) { TemplatesScreen(navController) }
+            composable(Screen.WorkoutHistory.route) { WorkoutHistoryScreen(navController) }
+            composable(Screen.ExerciseCatalog.route) { ExerciseCatalogScreen(navController) }
+            composable(
+                route = Screen.ExerciseDetail.route,
+                arguments = listOf(navArgument("exerciseStableId") { type = NavType.StringType }),
+            ) { ExerciseDetailScreen(navController) }
+            composable(
+                route = Screen.TemplateEditor.route,
+                arguments = listOf(navArgument("templateId") { type = NavType.LongType }),
+            ) { TemplateEditorScreen(navController) }
+            composable(
+                route = Screen.WorkoutSession.route,
+                arguments = listOf(
+                    navArgument("templateId") { type = NavType.LongType; defaultValue = 0L },
+                ),
+            ) { WorkoutSessionScreen(navController) }
             composable(Screen.BarcodeScanner.route) { BarcodeScannerScreen(navController) }
             composable(Screen.Stats.route) { StatsScreen(navController) }
+            composable(Screen.Settings.route) { SettingsScreen(navController) }
         }
         if (showBottomNav) {
             // Flat nav bar: hairline top border replaces Material's tonal elevation.
@@ -103,19 +152,18 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                                 restoreState = true
                             }
                         },
+                        // Icon-only nav: labels are dropped (the pictograms are self-explanatory);
+                        // the label text lives on as the icon's contentDescription for a11y.
                         icon = {
                             Icon(
                                 if (selected) item.selectedIcon else item.unselectedIcon,
                                 contentDescription = item.label,
                             )
                         },
-                        label = { Text(item.label) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
                             indicatorColor = Color.Transparent,
                             unselectedIconColor = MaterialTheme.colorScheme.outline,
-                            unselectedTextColor = MaterialTheme.colorScheme.outline,
                         ),
                     )
                 }

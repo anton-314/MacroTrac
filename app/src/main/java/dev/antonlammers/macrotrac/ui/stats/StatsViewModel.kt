@@ -3,11 +3,17 @@ package dev.antonlammers.macrotrac.ui.stats
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.antonlammers.macrotrac.domain.WorkoutMetrics
+import dev.antonlammers.macrotrac.domain.model.ExerciseType
 import dev.antonlammers.macrotrac.domain.model.FoodEntry
+import dev.antonlammers.macrotrac.domain.model.StatCardType
 import dev.antonlammers.macrotrac.domain.model.WeightEntry
+import dev.antonlammers.macrotrac.domain.repository.ExerciseCatalogRepository
 import dev.antonlammers.macrotrac.domain.repository.FoodEntryRepository
 import dev.antonlammers.macrotrac.domain.repository.GoalRepository
+import dev.antonlammers.macrotrac.domain.repository.SettingsRepository
 import dev.antonlammers.macrotrac.domain.repository.WeightRepository
+import dev.antonlammers.macrotrac.domain.repository.WorkoutSessionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +21,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -38,6 +45,15 @@ data class StatsUiState(
     val overallCleanPercent: Int? = null,
     val weight: WeightChartData = WeightChartData(),
     val goalKcal: Double = 0.0,
+    /** Completed sessions per time bucket (spec §3.7 — training frequency). */
+    val frequencyPoints: List<ChartPoint> = emptyList(),
+    /** Exercises trained in range, selectable for the strength chart. */
+    val strengthExercises: List<ExerciseOption> = emptyList(),
+    /** The exercise the strength chart is showing (defaults to the first option). */
+    val selectedExerciseId: String? = null,
+    val strength: StrengthChartData = StrengthChartData(),
+    /** User-customizable order of the chart cards (drag-to-reorder). */
+    val cardOrder: List<StatCardType> = StatCardType.DEFAULT_ORDER,
 )
 
 @HiltViewModel
@@ -45,18 +61,57 @@ class StatsViewModel @Inject constructor(
     private val foodEntryRepository: FoodEntryRepository,
     private val weightRepository: WeightRepository,
     private val goalRepository: GoalRepository,
+    private val workoutSessionRepository: WorkoutSessionRepository,
+    private val exerciseCatalogRepository: ExerciseCatalogRepository,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val _timeRange = MutableStateFlow(TimeRange.WEEK)
+    private val _selectedExerciseId = MutableStateFlow<String?>(null)
+    private val _cardOrder = MutableStateFlow(StatCardType.DEFAULT_ORDER)
 
-    val uiState: StateFlow<StatsUiState> = _timeRange
-        .flatMapLatest { range ->
+    // All weigh-ins (loaded once) — used to resolve body weight for bodyweight-exercise 1RMs, which
+    // may reference a weigh-in from before the visible range's start (spec §3.4 "last known").
+    private val _allWeights = MutableStateFlow<List<WeightEntry>>(emptyList())
+
+    init {
+        viewModelScope.launch { _allWeights.value = weightRepository.allEntries() }
+        viewModelScope.launch { _cardOrder.value = settingsRepository.statsCardOrder() }
+    }
+
+    private val chartState: StateFlow<StatsUiState> =
+        combine(_timeRange, _selectedExerciseId) { range, selectedId -> range to selectedId }
+        .flatMapLatest { (range, selectedId) ->
             val (from, to) = range.dateRange()
             combine(
                 foodEntryRepository.entriesInRange(from, to),
                 weightRepository.entriesInRange(from, to),
                 goalRepository.goal(),
-            ) { foodEntries, weightEntries, goal ->
+                workoutSessionRepository.sessions(),
+                combine(exerciseCatalogRepository.exercises(), _allWeights) { catalog, allWeights -> catalog to allWeights },
+            ) { foodEntries, weightEntries, goal, allSessions, catalogAndWeights ->
+                val (catalog, allWeights) = catalogAndWeights
+                val byStableId = catalog.associateBy { it.stableId }
+                val sessionsInRange = allSessions.filter {
+                    !it.isActive && !it.date.isBefore(from) && !it.date.isAfter(to)
+                }
+                val options = sessionsInRange
+                    .flatMap { session -> session.exercises.map { it.exerciseStableId } }
+                    .distinct()
+                    .map { id -> ExerciseOption(id, byStableId[id]?.name ?: id) }
+                    .sortedBy { it.name.lowercase() }
+                val effectiveId = selectedId?.takeIf { id -> options.any { it.stableId == id } }
+                    ?: options.firstOrNull()?.stableId
+                val strength = effectiveId?.let { id ->
+                    val samples = WorkoutSeries.strengthSamples(
+                        range, sessionsInRange, id,
+                        typeOf = { byStableId[it]?.type ?: ExerciseType.WEIGHT_REPS },
+                        bodyWeightForDate = { WorkoutMetrics.resolveBodyWeightKg(allWeights, it) },
+                    )
+                    val (minKg, maxKg) = WorkoutSeries.bounds(samples)
+                    StrengthChartData(samples, from, to, minKg, maxKg)
+                } ?: StrengthChartData(rangeStart = from, rangeEnd = to)
+
                 StatsUiState(
                     timeRange = range,
                     caloriePoints = bucketedPoints(range, from, to, foodEntries) { it.sumOf { e -> e.kcal } },
@@ -64,6 +119,10 @@ class StatsViewModel @Inject constructor(
                     overallCleanPercent = cleanPercent(foodEntries).takeIf { foodEntries.isNotEmpty() }?.let { Math.round(it).toInt() },
                     weight = buildWeightData(range, from, to, weightEntries, goal.targetWeightKg),
                     goalKcal = goal.kcal,
+                    frequencyPoints = WorkoutSeries.frequency(range, from, to, sessionsInRange.map { it.date }),
+                    strengthExercises = options,
+                    selectedExerciseId = effectiveId,
+                    strength = strength,
                 )
             }
         }
@@ -73,7 +132,28 @@ class StatsViewModel @Inject constructor(
             initialValue = StatsUiState(),
         )
 
+    // Recombined on top of chartState so a reorder never re-triggers the (expensive) repository
+    // re-subscription above — only the card order itself changes.
+    val uiState: StateFlow<StatsUiState> = combine(chartState, _cardOrder) { state, order ->
+        state.copy(cardOrder = order)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = StatsUiState(),
+    )
+
     fun setTimeRange(range: TimeRange) = _timeRange.update { range }
+
+    fun setSelectedExercise(stableId: String) = _selectedExerciseId.update { stableId }
+
+    /** Swap two cards — called repeatedly (once per adjacent step) while a card is dragged into place. */
+    fun moveCard(from: Int, to: Int) {
+        val order = _cardOrder.value
+        if (from !in order.indices || to !in order.indices) return
+        val reordered = order.toMutableList().apply { val tmp = this[from]; this[from] = this[to]; this[to] = tmp }
+        _cardOrder.value = reordered
+        viewModelScope.launch { settingsRepository.setStatsCardOrder(reordered) }
+    }
 
     /**
      * Buckets [entries] over [range] (per day for WEEK/MONTH, per month for YEAR) and maps each

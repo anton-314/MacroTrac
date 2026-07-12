@@ -35,18 +35,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Dialpad
 import androidx.compose.material.icons.rounded.FlashOff
 import androidx.compose.material.icons.rounded.FlashOn
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import dev.antonlammers.macrotrac.ui.components.NumericTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -138,70 +137,38 @@ fun BarcodeScannerScreen(navController: NavController) {
                 }
             }
             var manualBarcode by remember { mutableStateOf("") }
-            var showManualSheet by remember { mutableStateOf(false) }
 
-            // Bottom pill that opens the manual number-entry sheet (same submit flow as a scan).
+            // Always-docked manual-entry panel (no extra tap to reveal it) — same submit flow as a scan.
             Surface(
-                onClick = { showManualSheet = true },
-                shape = CircleShape,
-                color = TranslucentControl,
-                contentColor = Color.White,
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 28.dp),
+                    .fillMaxWidth(),
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Icon(Icons.Rounded.Dialpad, contentDescription = null)
-                    Text("Barcode-Nummer eingeben", style = MaterialTheme.typography.labelLarge)
-                }
-            }
-
-            if (showManualSheet) {
-                val sheetState = rememberModalBottomSheetState()
-                ModalBottomSheet(
-                    onDismissRequest = { showManualSheet = false },
-                    sheetState = sheetState,
-                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp)
-                            .navigationBarsPadding()
-                            .imePadding()
-                            .padding(bottom = 20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    NumericTextField(
+                        value = manualBarcode,
+                        onValueChange = { manualBarcode = it },
+                        label = null,
+                        decimal = false,
+                        placeholder = "Barcode-Nummer eingeben",
+                        textStyle = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    FilledIconButton(
+                        onClick = { submitBarcode(manualBarcode) },
+                        enabled = manualBarcode.isNotBlank(),
                     ) {
-                        Text("Barcode-Nummer eingeben", style = MaterialTheme.typography.titleLarge)
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                "BARCODE-NUMMER",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            NumericTextField(
-                                value = manualBarcode,
-                                onValueChange = { manualBarcode = it },
-                                label = null,
-                                decimal = false,
-                                textStyle = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                        Button(
-                            onClick = { submitBarcode(manualBarcode) },
-                            enabled = manualBarcode.isNotBlank(),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp),
-                        ) {
-                            Text("Suchen", style = MaterialTheme.typography.labelLarge)
-                        }
+                        Icon(Icons.Rounded.Search, contentDescription = "Suchen")
                     }
                 }
             }

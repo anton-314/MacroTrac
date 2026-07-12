@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -285,6 +286,7 @@ fun OverviewScreen(
 
                         SwipeToDismissBox(
                             state = dismissState,
+                            modifier = Modifier.clip(RoundedCornerShape(18.dp)),
                             enableDismissFromStartToEnd = true,
                             backgroundContent = {
                                 val bgColor = when (dismissState.targetValue) {
@@ -320,7 +322,6 @@ fun OverviewScreen(
                         ) {
                             FoodEntryRow(entry = entry)
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                 }
             }
@@ -347,6 +348,7 @@ private fun EditFoodDialog(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        modifier = Modifier.statusBarsPadding(),
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface,

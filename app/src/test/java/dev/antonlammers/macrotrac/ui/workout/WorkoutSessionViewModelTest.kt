@@ -1,0 +1,598 @@
+package dev.antonlammers.macrotrac.ui.workout
+
+import app.cash.turbine.test
+import dev.antonlammers.macrotrac.domain.SetPerformance
+import dev.antonlammers.macrotrac.domain.model.Exercise
+import dev.antonlammers.macrotrac.domain.model.ExerciseType
+import dev.antonlammers.macrotrac.domain.model.SessionExercise
+import dev.antonlammers.macrotrac.domain.model.SetEntry
+import dev.antonlammers.macrotrac.domain.model.SetType
+import dev.antonlammers.macrotrac.domain.model.TemplateExercise
+import dev.antonlammers.macrotrac.domain.model.WorkoutSession
+import dev.antonlammers.macrotrac.domain.model.WorkoutTemplate
+import dev.antonlammers.macrotrac.domain.model.WeightEntry
+import dev.antonlammers.macrotrac.fake.FakeExerciseCatalogRepository
+import dev.antonlammers.macrotrac.fake.FakeWeightRepository
+import dev.antonlammers.macrotrac.fake.FakeWorkoutSessionRepository
+import dev.antonlammers.macrotrac.fake.FakeWorkoutTemplateRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class WorkoutSessionViewModelTest {
+
+    private val testDispatcher = StandardTestDispatcher()
+    private lateinit var sessions: FakeWorkoutSessionRepository
+    private lateinit var templates: FakeWorkoutTemplateRepository
+    private lateinit var catalog: FakeExerciseCatalogRepository
+    private lateinit var weight: FakeWeightRepository
+
+    @Before
+    fun setup() {
+        Dispatchers.setMain(testDispatcher)
+        sessions = FakeWorkoutSessionRepository()
+        templates = FakeWorkoutTemplateRepository()
+        catalog = FakeExerciseCatalogRepository()
+        weight = FakeWeightRepository()
+    }
+
+    @After
+    fun tearDown() = Dispatchers.resetMain()
+
+    private fun <T> TestScope.subscribe(flow: StateFlow<T>) {
+        backgroundScope.launch { flow.collect {} }
+    }
+
+    private fun exercise(id: String, name: String, type: ExerciseType = ExerciseType.WEIGHT_REPS) =
+        Exercise(stableId = id, name = name, type = type, isCustom = false)
+
+    private fun viewModel(templateId: Long = 0L) =
+        WorkoutSessionViewModel(sessions, templates, catalog, weight, templateId) { FIXED_CLOCK }
+
+    // --- start ---
+
+    @Test
+    fun `starting an empty session persists it as the active session immediately`() = runTest {
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.loading)
+        assertTrue(vm.uiState.value.exercises.isEmpty())
+
+        val active = sessions.activeSession().first()
+        assertNotNull(active)
+        assertTrue(active!!.isActive)
+        assertEquals(FIXED_CLOCK, active.startedAtMs)
+        assertEquals(1, sessions.sessions().first().size)
+    }
+
+    @Test
+    fun `starting from a template seeds its exercises with the planned number of empty sets, carrying each set's planned type`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press"), exercise("squat", "Squat")))
+        val templateId = templates.save(
+            WorkoutTemplate(
+                stableId = "tpl",
+                name = "Push",
+                exercises = listOf(
+                    TemplateExercise("bench", 0, listOf(SetType.WARMUP, SetType.NORMAL, SetType.NORMAL)),
+                    TemplateExercise("squat", 1, listOf(SetType.NORMAL, SetType.FAILURE)),
+                ),
+            ),
+        )
+        val vm = viewModel(templateId)
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+
+        val exercises = vm.uiState.value.exercises
+        assertEquals(listOf("Bench Press", "Squat"), exercises.map { it.name })
+        assertEquals(3, exercises[0].sets.size)
+        assertEquals(2, exercises[1].sets.size)
+        assertTrue(exercises.flatMap { it.sets }.all { it.weightKg == 0.0 && it.reps == 0 && !it.completed })
+        assertEquals(listOf(SetType.WARMUP, SetType.NORMAL, SetType.NORMAL), exercises[0].sets.map { it.type })
+        assertEquals(listOf(SetType.NORMAL, SetType.FAILURE), exercises[1].sets.map { it.type })
+
+        // Links the session back to its template, so the templates list can show "last used".
+        assertEquals("tpl", sessions.activeSession().first()?.templateStableId)
+    }
+
+    @Test
+    fun `starting an empty (non-template) session leaves templateStableId null`() = runTest {
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+
+        assertNull(sessions.activeSession().first()?.templateStableId)
+    }
+
+    // --- exercises ---
+
+    @Test
+    fun `addExercise appends an exercise with one empty set`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+
+        vm.addExercise(exercise("bench", "Bench Press"))
+        advanceUntilIdle()
+
+        val exercises = vm.uiState.value.exercises
+        assertEquals(1, exercises.size)
+        assertEquals("Bench Press", exercises[0].name)
+        assertEquals(1, exercises[0].sets.size)
+    }
+
+    @Test
+    fun `removeExercise drops it`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press"), exercise("squat", "Squat")))
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+        vm.addExercise(exercise("bench", "Bench Press"))
+        vm.addExercise(exercise("squat", "Squat"))
+        advanceUntilIdle()
+
+        vm.removeExercise(0)
+        advanceUntilIdle()
+        assertEquals(listOf("Squat"), vm.uiState.value.exercises.map { it.name })
+    }
+
+    // --- sets ---
+
+    @Test
+    fun `addSet and removeSet change the set list`() = runTest {
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+        vm.addExercise(exercise("bench", "Bench Press"))
+        advanceUntilIdle()
+
+        vm.addSet(0)
+        advanceUntilIdle()
+        assertEquals(2, vm.uiState.value.exercises[0].sets.size)
+
+        vm.removeSet(0, 0)
+        advanceUntilIdle()
+        assertEquals(1, vm.uiState.value.exercises[0].sets.size)
+    }
+
+    @Test
+    fun `weight and reps and completed are editable per set`() = runTest {
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+        vm.addExercise(exercise("bench", "Bench Press"))
+        advanceUntilIdle()
+
+        vm.setWeight(0, 0, 80.0)
+        vm.setReps(0, 0, 5)
+        vm.toggleSetCompleted(0, 0)
+        advanceUntilIdle()
+
+        val set = vm.uiState.value.exercises[0].sets[0]
+        assertEquals(80.0, set.weightKg, 0.0)
+        assertEquals(5, set.reps)
+        assertTrue(set.completed)
+    }
+
+    @Test
+    fun `moveSet reorders sets and reindexes positions`() = runTest {
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+        vm.addExercise(exercise("bench", "Bench Press"))
+        advanceUntilIdle()
+        vm.addSet(0)
+        advanceUntilIdle()
+        vm.setReps(0, 0, 10) // first set marked so we can track it
+        advanceUntilIdle()
+
+        vm.moveSet(0, 0, 1)
+        advanceUntilIdle()
+
+        val sets = vm.uiState.value.exercises[0].sets
+        assertEquals(10, sets[1].reps) // moved to the back
+        assertEquals(listOf(0, 1), sets.map { it.position }) // positions renumbered by order
+    }
+
+    // --- set types ---
+
+    @Test
+    fun `set type is editable and persisted`() = runTest {
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+        vm.addExercise(exercise("bench", "Bench Press"))
+        advanceUntilIdle()
+
+        vm.setSetType(0, 0, SetType.WARMUP)
+        advanceUntilIdle()
+
+        assertEquals(SetType.WARMUP, vm.uiState.value.exercises[0].sets[0].type)
+        assertEquals(SetType.WARMUP, sessions.activeSession().first()!!.exercises[0].sets[0].type)
+    }
+
+    // --- inline history ---
+
+    @Test
+    fun `last performance of an exercise surfaces as inline-history hints`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        // A completed session from a previous day with known values.
+        sessions.save(
+            WorkoutSession(
+                stableId = "past",
+                date = java.time.LocalDate.of(2026, 7, 1),
+                isActive = false,
+                startedAtMs = 1L,
+                endedAtMs = 2L,
+                exercises = listOf(
+                    SessionExercise(
+                        exerciseStableId = "bench",
+                        position = 0,
+                        sets = listOf(
+                            SetEntry(position = 0, weightKg = 80.0, reps = 8),
+                            SetEntry(position = 1, weightKg = 82.5, reps = 6),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val templateId = templates.save(
+            WorkoutTemplate(
+                stableId = "t", name = "Push",
+                exercises = listOf(TemplateExercise("bench", 0, List(2) { SetType.NORMAL })),
+            ),
+        )
+
+        val vm = viewModel(templateId)
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(SetPerformance(80.0, 8), SetPerformance(82.5, 6)),
+            vm.uiState.value.exercises.single().lastPerformance,
+        )
+    }
+
+    // --- calculations (volume / 1RM) ---
+
+    @Test
+    fun `volume and estimated 1RM surface per exercise in the ui state`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+        vm.addExercise(exercise("bench", "Bench Press"))
+        advanceUntilIdle()
+
+        vm.setWeight(0, 0, 100.0)
+        vm.setReps(0, 0, 5)
+        vm.addSet(0)
+        vm.setSetType(0, 1, SetType.WARMUP) // excluded from volume
+        vm.setWeight(0, 1, 60.0)
+        vm.setReps(0, 1, 10)
+        advanceUntilIdle()
+
+        val ex = vm.uiState.value.exercises.single()
+        assertEquals(500.0, ex.volumeKg, 0.0) // only the 100×5 work set
+        assertEquals(116.667, ex.estimatedOneRepMaxKg!!, 0.001) // 100 × (1 + 5/30)
+    }
+
+    @Test
+    fun `bodyweight exercise volume uses the last known body weight`() = runTest {
+        weight.save(WeightEntry(weightKg = 80.0, date = java.time.LocalDate.now(), timestampMs = 1L))
+        catalog.upsertAll(listOf(exercise("pullup", "Pull Up", ExerciseType.BODYWEIGHT)))
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+        vm.addExercise(exercise("pullup", "Pull Up", ExerciseType.BODYWEIGHT))
+        advanceUntilIdle()
+
+        vm.setWeight(0, 0, 10.0) // added weight
+        vm.setReps(0, 0, 8)
+        advanceUntilIdle()
+
+        // (80 body weight + 10 added) × 8 reps
+        assertEquals(720.0, vm.uiState.value.exercises.single().volumeKg, 0.0)
+        assertEquals(80.0, vm.uiState.value.bodyWeightKg!!, 0.0)
+    }
+
+    // --- rest timer ---
+    // Commands are one-shot events on a channel-backed flow, so they are asserted with turbine
+    // (which drives collection reliably across the test/main dispatchers).
+
+    private suspend fun WorkoutSessionViewModel.startedWithOneExercise(scope: TestScope) {
+        scope.advanceUntilIdle()
+        addExercise(exercise("bench", "Bench Press"))
+        scope.advanceUntilIdle()
+    }
+
+    @Test
+    fun `checking a set off starts the rest timer and schedules the notification`() = runTest {
+        val vm = viewModel()
+        vm.startedWithOneExercise(this)
+        vm.restCommands.test {
+            vm.toggleSetCompleted(0, 0)
+            assertEquals(RestCommand.Start("bench", 180, 180_000, FIXED_CLOCK + 180_000), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `the per-exercise rest override sets the timer duration`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press").copy(restSeconds = 120)))
+        val vm = viewModel()
+        vm.startedWithOneExercise(this)
+        vm.restCommands.test {
+            vm.toggleSetCompleted(0, 0)
+            assertEquals(RestCommand.Start("Bench Press", 120, 120_000, FIXED_CLOCK + 120_000), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `pause cancels the pending alert and shows a paused notification, resume reschedules`() = runTest {
+        val vm = viewModel()
+        vm.startedWithOneExercise(this)
+        vm.restCommands.test {
+            vm.toggleSetCompleted(0, 0)
+            assertEquals(RestCommand.Start("bench", 180, 180_000, FIXED_CLOCK + 180_000), awaitItem())
+            vm.pauseRest()
+            assertEquals(RestCommand.Pause("bench", 180), awaitItem())
+            vm.resumeRest()
+            assertEquals(RestCommand.Start("bench", 180, 180_000, FIXED_CLOCK + 180_000), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `adjusting reschedules with the new remaining time`() = runTest {
+        val vm = viewModel()
+        vm.startedWithOneExercise(this)
+        vm.restCommands.test {
+            vm.toggleSetCompleted(0, 0)
+            assertEquals(RestCommand.Start("bench", 180, 180_000, FIXED_CLOCK + 180_000), awaitItem())
+            vm.adjustRest(15)
+            assertEquals(RestCommand.Start("bench", 195, 195_000, FIXED_CLOCK + 195_000), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `skipping cancels the timer`() = runTest {
+        val vm = viewModel()
+        vm.startedWithOneExercise(this)
+        vm.restCommands.test {
+            vm.toggleSetCompleted(0, 0)
+            assertEquals(RestCommand.Start("bench", 180, 180_000, FIXED_CLOCK + 180_000), awaitItem())
+            vm.skipRest()
+            assertEquals(RestCommand.Cancel, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // --- rest timer survives leaving/resuming the session (persisted anchor) ---
+
+    @Test
+    fun `resuming an active session restores a paused rest timer from its persisted anchor`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        sessions.save(
+            WorkoutSession(
+                stableId = "running",
+                date = java.time.LocalDate.now(),
+                isActive = true,
+                startedAtMs = 500L,
+                exercises = listOf(
+                    SessionExercise(
+                        exerciseStableId = "bench",
+                        position = 0,
+                        sets = listOf(SetEntry(position = 0, weightKg = 80.0, reps = 5, completed = true)),
+                    ),
+                ),
+                restExerciseStableId = "bench",
+                restTotalSeconds = 180,
+                restEndAtMs = FIXED_CLOCK + 60_000,
+                restPausedRemainingMs = 45_000L,
+            ),
+        )
+
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        subscribe(vm.restTimer)
+        advanceUntilIdle()
+
+        val restored = vm.restTimer.value
+        assertNotNull(restored)
+        assertEquals("Bench Press", restored!!.exerciseName)
+        assertEquals(180, restored.totalSeconds)
+        assertEquals(45, restored.remainingSeconds)
+        assertTrue(restored.isPaused)
+    }
+
+    @Test
+    fun `resuming drops an already-finished persisted rest timer and clears its anchor`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        sessions.save(
+            WorkoutSession(
+                stableId = "running",
+                date = java.time.LocalDate.now(),
+                isActive = true,
+                startedAtMs = 500L,
+                restExerciseStableId = "bench",
+                restTotalSeconds = 180,
+                restEndAtMs = FIXED_CLOCK - 1L,
+            ),
+        )
+
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        subscribe(vm.restTimer)
+        advanceUntilIdle()
+
+        assertNull(vm.restTimer.value)
+        assertNull(sessions.activeSession().first()!!.restExerciseStableId)
+    }
+
+    @Test
+    fun `setExerciseRest persists the override on the exercise`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        val vm = viewModel()
+        advanceUntilIdle()
+
+        vm.setExerciseRest("bench", 150)
+        advanceUntilIdle()
+
+        assertEquals(150, catalog.exercise("bench").first()!!.restSeconds)
+    }
+
+    // --- continuous persistence ---
+
+    @Test
+    fun `every change is persisted to the single active session without duplicating rows`() = runTest {
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+
+        vm.addExercise(exercise("bench", "Bench Press"))
+        vm.addSet(0)
+        vm.setWeight(0, 0, 60.0)
+        advanceUntilIdle()
+
+        assertEquals(1, sessions.sessions().first().size) // no duplicate inserts
+        val persisted = sessions.activeSession().first()!!
+        assertEquals(1, persisted.exercises.size)
+        assertEquals(2, persisted.exercises[0].sets.size)
+        assertEquals(60.0, persisted.exercises[0].sets[0].weightKg, 0.0)
+    }
+
+    // --- resume ---
+
+    @Test
+    fun `an existing active session is resumed and the template argument is ignored`() = runTest {
+        catalog.upsertAll(listOf(exercise("row", "Barbell Row")))
+        // A running session already persisted from a previous app launch.
+        sessions.save(
+            dev.antonlammers.macrotrac.domain.model.WorkoutSession(
+                stableId = "running",
+                date = java.time.LocalDate.now(),
+                isActive = true,
+                startedAtMs = 500L,
+                exercises = listOf(
+                    dev.antonlammers.macrotrac.domain.model.SessionExercise(
+                        exerciseStableId = "row",
+                        position = 0,
+                        sets = listOf(dev.antonlammers.macrotrac.domain.model.SetEntry(position = 0, weightKg = 40.0, reps = 8)),
+                    ),
+                ),
+            ),
+        )
+        val templateId = templates.save(
+            WorkoutTemplate(
+                stableId = "t", name = "Other",
+                exercises = listOf(TemplateExercise("row", 0, List(5) { SetType.NORMAL })),
+            ),
+        )
+
+        val vm = viewModel(templateId)
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+
+        // Resumed the running session (1 set), not the template (which would have 5).
+        assertEquals(1, vm.uiState.value.exercises.size)
+        assertEquals(1, vm.uiState.value.exercises[0].sets.size)
+        assertEquals(1, sessions.sessions().first().size)
+    }
+
+    // --- finish / discard ---
+
+    @Test
+    fun `finish marks the session completed and keeps it in history`() = runTest {
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        subscribe(vm.finished)
+        advanceUntilIdle()
+        vm.addExercise(exercise("bench", "Bench Press"))
+        advanceUntilIdle()
+        vm.setWeight(0, 0, 80.0)
+        vm.setReps(0, 0, 5)
+        advanceUntilIdle()
+
+        vm.finish()
+        advanceUntilIdle()
+
+        assertTrue(vm.finished.value)
+        assertNull(sessions.activeSession().first()) // no longer active
+        val all = sessions.sessions().first()
+        assertEquals(1, all.size)
+        assertFalse(all[0].isActive)
+        assertEquals(FIXED_CLOCK, all[0].endedAtMs)
+    }
+
+    @Test
+    fun `finish deletes a session with zero volume instead of keeping it in history`() = runTest {
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        subscribe(vm.finished)
+        advanceUntilIdle()
+        vm.addExercise(exercise("bench", "Bench Press"))
+        advanceUntilIdle() // set added with default weight 0.0 / reps 0 — never logged
+
+        vm.finish()
+        advanceUntilIdle()
+
+        assertTrue(vm.finished.value)
+        assertTrue(sessions.sessions().first().isEmpty())
+    }
+
+    @Test
+    fun `finish deletes an empty session with no exercises`() = runTest {
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        subscribe(vm.finished)
+        advanceUntilIdle()
+
+        vm.finish()
+        advanceUntilIdle()
+
+        assertTrue(vm.finished.value)
+        assertTrue(sessions.sessions().first().isEmpty())
+    }
+
+    @Test
+    fun `discard deletes the session entirely`() = runTest {
+        val vm = viewModel()
+        subscribe(vm.uiState)
+        subscribe(vm.finished)
+        advanceUntilIdle()
+        vm.addExercise(exercise("bench", "Bench Press"))
+        advanceUntilIdle()
+
+        vm.discard()
+        advanceUntilIdle()
+
+        assertTrue(vm.finished.value)
+        assertTrue(sessions.sessions().first().isEmpty())
+    }
+
+    private companion object {
+        const val FIXED_CLOCK = 1_000L
+    }
+}
