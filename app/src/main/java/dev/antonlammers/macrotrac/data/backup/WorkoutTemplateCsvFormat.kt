@@ -1,5 +1,6 @@
 package dev.antonlammers.macrotrac.data.backup
 
+import dev.antonlammers.macrotrac.domain.model.SetType
 import dev.antonlammers.macrotrac.domain.model.TemplateExercise
 import dev.antonlammers.macrotrac.domain.model.WorkoutTemplate
 
@@ -40,15 +41,20 @@ object TemplateExerciseCsvFormat {
     const val EXERCISE_STABLE_ID = "exercise_stable_id"
     const val POSITION = "position"
     const val TARGET_SETS = "target_sets"
+    const val SET_TYPES = "set_types"
+
+    /** Matches [ExerciseCsvFormat]'s list-cell convention — one line per row, so `|`, not a newline. */
+    private const val LIST_SEPARATOR = "|"
 
     val HEADER: String =
-        listOf(TEMPLATE_STABLE_ID, EXERCISE_STABLE_ID, POSITION, TARGET_SETS).joinToString(",")
+        listOf(TEMPLATE_STABLE_ID, EXERCISE_STABLE_ID, POSITION, TARGET_SETS, SET_TYPES).joinToString(",")
 
     fun toRow(templateStableId: String, exercise: TemplateExercise): String = listOf(
         templateStableId.escapeCsv(),
         exercise.exerciseStableId.escapeCsv(),
         exercise.position,
-        exercise.targetSets,
+        exercise.setTypes.size,
+        exercise.setTypes.joinToString(LIST_SEPARATOR) { it.name }.escapeCsv(),
     ).joinToString(",")
 
     /** A parsed slot together with the stable id of the template it belongs to. */
@@ -62,12 +68,16 @@ object TemplateExerciseCsvFormat {
             ?: return null
         val position = cols.csvInt(headers, POSITION) ?: return null
         val targetSets = cols.csvInt(headers, TARGET_SETS) ?: 1
+        // Older backups lack SET_TYPES — fall back to targetSets NORMAL sets, same as the DB migration.
+        val setTypes = cols.csvStr(headers, SET_TYPES)?.takeIf { it.isNotBlank() }
+            ?.split(LIST_SEPARATOR)?.map { SetType.parse(it) }
+            ?: List(targetSets) { SetType.NORMAL }
         return Row(
             templateStableId,
             TemplateExercise(
                 exerciseStableId = exerciseStableId,
                 position = position,
-                targetSets = targetSets,
+                setTypes = setTypes,
             ),
         )
     }

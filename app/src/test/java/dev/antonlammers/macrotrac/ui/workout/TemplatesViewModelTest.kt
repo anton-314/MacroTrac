@@ -2,6 +2,7 @@ package dev.antonlammers.macrotrac.ui.workout
 
 import dev.antonlammers.macrotrac.domain.model.SessionExercise
 import dev.antonlammers.macrotrac.domain.model.SetEntry
+import dev.antonlammers.macrotrac.domain.model.SetType
 import dev.antonlammers.macrotrac.domain.model.TemplateExercise
 import dev.antonlammers.macrotrac.domain.model.WorkoutSession
 import dev.antonlammers.macrotrac.domain.model.WorkoutTemplate
@@ -52,7 +53,7 @@ class TemplatesViewModelTest {
         WorkoutTemplate(
             stableId = "s-$name",
             name = name,
-            exercises = listOf(TemplateExercise("ex-1", 0, 3)),
+            exercises = listOf(TemplateExercise("ex-1", 0, List(3) { SetType.NORMAL })),
         ),
     )
 

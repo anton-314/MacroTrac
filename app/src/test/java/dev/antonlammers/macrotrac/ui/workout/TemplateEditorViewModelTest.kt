@@ -3,6 +3,7 @@ package dev.antonlammers.macrotrac.ui.workout
 import androidx.lifecycle.SavedStateHandle
 import dev.antonlammers.macrotrac.domain.model.Exercise
 import dev.antonlammers.macrotrac.domain.model.ExerciseType
+import dev.antonlammers.macrotrac.domain.model.SetType
 import dev.antonlammers.macrotrac.domain.model.TemplateExercise
 import dev.antonlammers.macrotrac.domain.model.WorkoutTemplate
 import dev.antonlammers.macrotrac.fake.FakeExerciseCatalogRepository
@@ -52,6 +53,8 @@ class TemplateEditorViewModelTest {
     private fun editorFor(templateId: Long) =
         TemplateEditorViewModel(templates, catalog, SavedStateHandle(mapOf("templateId" to templateId)))
 
+    private fun normalSets(count: Int) = List(count) { SetType.NORMAL }
+
     // --- validation ---
 
     @Test
@@ -70,15 +73,15 @@ class TemplateEditorViewModelTest {
         assertFalse(vm.uiState.value.canSave) // blank name
     }
 
-    // --- add / remove ---
+    // --- add / remove exercise ---
 
     @Test
-    fun `addExercise appends with the default target-set count`() = runTest {
+    fun `addExercise appends with the default set count, all NORMAL`() = runTest {
         val vm = editorFor(0)
         vm.addExercise(exercise("bench", "Bench Press"))
         vm.addExercise(exercise("squat", "Squat"))
         assertEquals(listOf("Bench Press", "Squat"), vm.uiState.value.slots.map { it.exerciseName })
-        assertTrue(vm.uiState.value.slots.all { it.targetSets == 3 })
+        assertTrue(vm.uiState.value.slots.all { it.setTypes == normalSets(3) })
     }
 
     @Test
@@ -90,21 +93,58 @@ class TemplateEditorViewModelTest {
         assertEquals(listOf("Squat"), vm.uiState.value.slots.map { it.exerciseName })
     }
 
-    // --- target sets ---
+    // --- per-set planning ---
 
     @Test
-    fun `setTargetSets clamps to the allowed range`() = runTest {
+    fun `addSet appends a NORMAL set up to the max, removeSet keeps at least one`() = runTest {
         val vm = editorFor(0)
         vm.addExercise(exercise("bench", "Bench Press"))
 
-        vm.setTargetSets(0, 5)
-        assertEquals(5, vm.uiState.value.slots[0].targetSets)
+        vm.addSet(0)
+        assertEquals(normalSets(4), vm.uiState.value.slots[0].setTypes)
 
-        vm.setTargetSets(0, 0)
-        assertEquals(1, vm.uiState.value.slots[0].targetSets) // min clamp
+        repeat(20) { vm.addSet(0) } // clamps at MAX_TARGET_SETS = 20
+        assertEquals(20, vm.uiState.value.slots[0].setTypes.size)
 
-        vm.setTargetSets(0, 999)
-        assertEquals(20, vm.uiState.value.slots[0].targetSets) // max clamp
+        repeat(25) { vm.removeSet(0, 0) } // clamps at MIN_TARGET_SETS = 1
+        assertEquals(1, vm.uiState.value.slots[0].setTypes.size)
+    }
+
+    @Test
+    fun `removeSet drops the set at the given index`() = runTest {
+        val vm = editorFor(0)
+        vm.addExercise(exercise("bench", "Bench Press")) // 3 NORMAL sets
+        vm.setSetType(0, 0, SetType.WARMUP)
+
+        vm.removeSet(0, 0) // drop the warmup
+        assertEquals(normalSets(2), vm.uiState.value.slots[0].setTypes)
+    }
+
+    @Test
+    fun `setSetType changes only the targeted set`() = runTest {
+        val vm = editorFor(0)
+        vm.addExercise(exercise("bench", "Bench Press")) // 3 NORMAL sets
+
+        vm.setSetType(0, 0, SetType.WARMUP)
+        vm.setSetType(0, 2, SetType.DROP)
+
+        assertEquals(
+            listOf(SetType.WARMUP, SetType.NORMAL, SetType.DROP),
+            vm.uiState.value.slots[0].setTypes,
+        )
+    }
+
+    @Test
+    fun `addSet, removeSet and setSetType out of range are no-ops`() = runTest {
+        val vm = editorFor(0)
+        vm.addExercise(exercise("bench", "Bench Press"))
+
+        vm.addSet(5)
+        vm.removeSet(5, 0)
+        vm.setSetType(5, 0, SetType.WARMUP)
+        vm.setSetType(0, 99, SetType.WARMUP)
+
+        assertEquals(normalSets(3), vm.uiState.value.slots[0].setTypes)
     }
 
     // --- reordering ---
@@ -137,13 +177,14 @@ class TemplateEditorViewModelTest {
     // --- save ---
 
     @Test
-    fun `save persists the template with positions from list order`() = runTest {
+    fun `save persists the template with positions from list order and each slot's planned set types`() = runTest {
         val vm = editorFor(0)
         subscribe(vm.saved)
         vm.onNameChange("  Push Day  ")
         vm.addExercise(exercise("bench", "Bench Press"))
         vm.addExercise(exercise("fly", "Cable Fly"))
-        vm.setTargetSets(1, 4)
+        vm.addSet(1)
+        vm.setSetType(1, 0, SetType.WARMUP)
         vm.save()
         advanceUntilIdle()
 
@@ -152,8 +193,8 @@ class TemplateEditorViewModelTest {
         assertEquals("Push Day", saved.name)
         assertEquals(
             listOf(
-                TemplateExercise("bench", 0, 3),
-                TemplateExercise("fly", 1, 4),
+                TemplateExercise("bench", 0, normalSets(3)),
+                TemplateExercise("fly", 1, listOf(SetType.WARMUP, SetType.NORMAL, SetType.NORMAL, SetType.NORMAL)),
             ),
             saved.exercises,
         )
@@ -173,15 +214,15 @@ class TemplateEditorViewModelTest {
     // --- loading an existing template ---
 
     @Test
-    fun `existing template loads name and slots with resolved names and set counts in order`() = runTest {
+    fun `existing template loads name and slots with resolved names and set types in order`() = runTest {
         catalog.upsertAll(listOf(exercise("bench", "Bench Press"), exercise("squat", "Squat")))
         val id = templates.save(
             WorkoutTemplate(
                 stableId = "tpl-1",
                 name = "Push + Leg",
                 exercises = listOf(
-                    TemplateExercise("bench", 0, 3),
-                    TemplateExercise("squat", 1, 5),
+                    TemplateExercise("bench", 0, listOf(SetType.WARMUP, SetType.NORMAL, SetType.NORMAL)),
+                    TemplateExercise("squat", 1, normalSets(5)),
                 ),
             ),
         )
@@ -190,8 +231,8 @@ class TemplateEditorViewModelTest {
 
         assertEquals("Push + Leg", vm.uiState.value.name)
         assertEquals(
-            listOf("Bench Press" to 3, "Squat" to 5),
-            vm.uiState.value.slots.map { it.exerciseName to it.targetSets },
+            listOf("Bench Press" to listOf(SetType.WARMUP, SetType.NORMAL, SetType.NORMAL), "Squat" to normalSets(5)),
+            vm.uiState.value.slots.map { it.exerciseName to it.setTypes },
         )
     }
 
@@ -202,7 +243,7 @@ class TemplateEditorViewModelTest {
             WorkoutTemplate(
                 stableId = "tpl-keep",
                 name = "Old",
-                exercises = listOf(TemplateExercise("bench", 0, 3)),
+                exercises = listOf(TemplateExercise("bench", 0, normalSets(3))),
             ),
         )
         val vm = editorFor(id)

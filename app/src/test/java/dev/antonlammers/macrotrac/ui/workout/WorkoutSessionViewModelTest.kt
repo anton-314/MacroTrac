@@ -85,15 +85,15 @@ class WorkoutSessionViewModelTest {
     }
 
     @Test
-    fun `starting from a template seeds its exercises with the planned number of empty sets`() = runTest {
+    fun `starting from a template seeds its exercises with the planned number of empty sets, carrying each set's planned type`() = runTest {
         catalog.upsertAll(listOf(exercise("bench", "Bench Press"), exercise("squat", "Squat")))
         val templateId = templates.save(
             WorkoutTemplate(
                 stableId = "tpl",
                 name = "Push",
                 exercises = listOf(
-                    TemplateExercise("bench", 0, 3),
-                    TemplateExercise("squat", 1, 2),
+                    TemplateExercise("bench", 0, listOf(SetType.WARMUP, SetType.NORMAL, SetType.NORMAL)),
+                    TemplateExercise("squat", 1, listOf(SetType.NORMAL, SetType.FAILURE)),
                 ),
             ),
         )
@@ -106,6 +106,8 @@ class WorkoutSessionViewModelTest {
         assertEquals(3, exercises[0].sets.size)
         assertEquals(2, exercises[1].sets.size)
         assertTrue(exercises.flatMap { it.sets }.all { it.weightKg == 0.0 && it.reps == 0 && !it.completed })
+        assertEquals(listOf(SetType.WARMUP, SetType.NORMAL, SetType.NORMAL), exercises[0].sets.map { it.type })
+        assertEquals(listOf(SetType.NORMAL, SetType.FAILURE), exercises[1].sets.map { it.type })
 
         // Links the session back to its template, so the templates list can show "last used".
         assertEquals("tpl", sessions.activeSession().first()?.templateStableId)
@@ -254,7 +256,10 @@ class WorkoutSessionViewModelTest {
             ),
         )
         val templateId = templates.save(
-            WorkoutTemplate(stableId = "t", name = "Push", exercises = listOf(TemplateExercise("bench", 0, 2))),
+            WorkoutTemplate(
+                stableId = "t", name = "Push",
+                exercises = listOf(TemplateExercise("bench", 0, List(2) { SetType.NORMAL })),
+            ),
         )
 
         val vm = viewModel(templateId)
@@ -500,7 +505,10 @@ class WorkoutSessionViewModelTest {
             ),
         )
         val templateId = templates.save(
-            WorkoutTemplate(stableId = "t", name = "Other", exercises = listOf(TemplateExercise("row", 0, 5))),
+            WorkoutTemplate(
+                stableId = "t", name = "Other",
+                exercises = listOf(TemplateExercise("row", 0, List(5) { SetType.NORMAL })),
+            ),
         )
 
         val vm = viewModel(templateId)

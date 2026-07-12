@@ -8,6 +8,12 @@ import androidx.room.PrimaryKey
 /**
  * One ordered exercise slot of a [WorkoutTemplateEntity]. Deleting the template cascade-deletes its
  * slots. The exercise itself is referenced by [exerciseStableId], not a row id.
+ *
+ * [setTypes] is the planned sets in order, newline-joined [dev.antonlammers.macrotrac.domain.model.SetType]
+ * names (same list-field convention as [ExerciseEntity]'s muscles/instructions). [targetSets] is the
+ * legacy plain set-count column, kept only so rows written before [setTypes] existed still read back
+ * correctly — [setTypes] null/blank means "pre-migration row", and the mapper falls back to
+ * [targetSets] NORMAL sets. New writes always populate both.
  */
 @Entity(
     tableName = "template_exercises",
@@ -27,4 +33,5 @@ data class TemplateExerciseEntity(
     val exerciseStableId: String,
     val position: Int,
     val targetSets: Int,
+    val setTypes: String? = null,
 )

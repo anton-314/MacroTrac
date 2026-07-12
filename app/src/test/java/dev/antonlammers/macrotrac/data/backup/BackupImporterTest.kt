@@ -181,7 +181,7 @@ class BackupImporterTest {
         assertEquals("Push Day", template.name)
         assertEquals(listOf("cat-squat", "custom-klimmzug"), template.exercises.map { it.exerciseStableId })
         assertEquals(listOf(0, 1), template.exercises.map { it.position })
-        assertEquals(listOf(3, 4), template.exercises.map { it.targetSets })
+        assertEquals(listOf(3, 4), template.exercises.map { it.setTypes.size })
 
         // Session graph rebuilt: exercises in order, each with its own sets reconnected by position.
         val session = sessions.sessions().first().single()
@@ -319,8 +319,8 @@ class BackupImporterTest {
         stableId = "custom-template",
         name = "Push Day",
         exercises = listOf(
-            TemplateExercise(exerciseStableId = "cat-squat", position = 0, targetSets = 3),
-            TemplateExercise(exerciseStableId = "custom-klimmzug", position = 1, targetSets = 4),
+            TemplateExercise(exerciseStableId = "cat-squat", position = 0, setTypes = List(3) { SetType.NORMAL }),
+            TemplateExercise(exerciseStableId = "custom-klimmzug", position = 1, setTypes = List(4) { SetType.NORMAL }),
         ),
     )
 

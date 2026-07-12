@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -18,7 +21,6 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DragIndicator
-import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,8 +28,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,13 +45,16 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import dev.antonlammers.macrotrac.domain.model.SetType
 import dev.antonlammers.macrotrac.ui.components.DragReorderColumn
 
 /**
  * Full-screen editor for creating or editing a [dev.antonlammers.macrotrac.domain.model.WorkoutTemplate]:
- * a name, an ordered list of exercises (drag-to-reorder via [DragReorderColumn], remove) each with a
- * target-set stepper, and an "add exercise" action that opens a searchable catalog picker sheet. All
- * editing logic lives in [TemplateEditorViewModel]; this screen only renders it. Ink & Paper style.
+ * a name, an ordered list of exercises (drag-to-reorder via [DragReorderColumn], remove) each with its
+ * planned sets — one chip per set carrying a [SetTypeBadge] (tap to pick warmup/normal/drop/failure)
+ * plus a remove ✕, and a "Satz hinzufügen" action — and an "add exercise" action that opens a
+ * searchable catalog picker sheet. All editing logic lives in [TemplateEditorViewModel]; this screen
+ * only renders it. Ink & Paper style.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -153,8 +159,9 @@ fun TemplateEditorScreen(
                             rowModifier = rowModifier,
                             dragHandleModifier = dragHandleModifier,
                             onRemove = { viewModel.removeExercise(index) },
-                            onDecrement = { viewModel.setTargetSets(index, slot.targetSets - 1) },
-                            onIncrement = { viewModel.setTargetSets(index, slot.targetSets + 1) },
+                            onAddSet = { viewModel.addSet(index) },
+                            onRemoveSet = { setIndex -> viewModel.removeSet(index, setIndex) },
+                            onSetTypeChange = { setIndex, type -> viewModel.setSetType(index, setIndex, type) },
                         )
                     }
                 }
@@ -178,7 +185,7 @@ fun TemplateEditorScreen(
     }
 }
 
-/** A single exercise slot: drag handle, name, target-set stepper, remove. */
+/** A single exercise slot: header (drag handle, name, remove) + its planned per-set-type list. */
 @Composable
 private fun SlotCard(
     slot: TemplateSlot,
@@ -186,10 +193,11 @@ private fun SlotCard(
     rowModifier: Modifier,
     dragHandleModifier: Modifier,
     onRemove: () -> Unit,
-    onDecrement: () -> Unit,
-    onIncrement: () -> Unit,
+    onAddSet: () -> Unit,
+    onRemoveSet: (Int) -> Unit,
+    onSetTypeChange: (Int, SetType) -> Unit,
 ) {
-    Row(
+    Column(
         modifier = rowModifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
@@ -199,52 +207,69 @@ private fun SlotCard(
             )
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
             .padding(start = 4.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            Icons.Rounded.DragIndicator,
-            contentDescription = "Ziehen zum Verschieben",
-            tint = MaterialTheme.colorScheme.outline,
-            modifier = dragHandleModifier.size(28.dp),
-        )
-
-        Text(
-            slot.exerciseName,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 8.dp),
-        )
-
-        SetStepper(targetSets = slot.targetSets, onDecrement = onDecrement, onIncrement = onIncrement)
-
-        IconButton(onClick = onRemove) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                Icons.Rounded.Close,
-                contentDescription = "Entfernen",
+                Icons.Rounded.DragIndicator,
+                contentDescription = "Ziehen zum Verschieben",
                 tint = MaterialTheme.colorScheme.outline,
+                modifier = dragHandleModifier.size(28.dp),
             )
-        }
-    }
-}
 
-/** A "− N SÄTZE +" stepper. The count is display-only (no keyboard), edited via the buttons. */
-@Composable
-private fun SetStepper(targetSets: Int, onDecrement: () -> Unit, onIncrement: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onDecrement, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Rounded.Remove, contentDescription = "Weniger Sätze", modifier = Modifier.size(18.dp))
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(targetSets.toString(), style = MaterialTheme.typography.titleMedium)
             Text(
-                "SÄTZE",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                slot.exerciseName,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 8.dp),
             )
+
+            IconButton(onClick = onRemove) {
+                Icon(
+                    Icons.Rounded.Close,
+                    contentDescription = "Übung entfernen",
+                    tint = MaterialTheme.colorScheme.outline,
+                )
+            }
         }
-        IconButton(onClick = onIncrement, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Rounded.Add, contentDescription = "Mehr Sätze", modifier = Modifier.size(18.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 36.dp, top = 4.dp),
+        ) {
+            itemsIndexed(slot.setTypes) { setIndex, type ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SetTypeBadge(
+                        setNumber = setIndex + 1,
+                        type = type,
+                        onTypeChange = { onSetTypeChange(setIndex, it) },
+                        modifier = Modifier.width(36.dp),
+                    )
+                    IconButton(
+                        onClick = { onRemoveSet(setIndex) },
+                        enabled = slot.setTypes.size > 1,
+                        modifier = Modifier.size(24.dp),
+                    ) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = "Satz entfernen",
+                            tint = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
+                }
+            }
+            item {
+                TextButton(onClick = onAddSet, enabled = slot.setTypes.size < 20) {
+                    Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Text(
+                        "Satz",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
+            }
         }
     }
 }

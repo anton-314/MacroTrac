@@ -12,7 +12,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Verifies the additive workout-module migrations (v7 → v10) on a real SQLite engine: each one must
+ * Verifies the additive workout-module migrations (v7 → v11) on a real SQLite engine: each one must
  * apply its schema change and leave existing data intact. Instrumented (needs Android's SQLite) — run
  * via `connectedDebugAndroidTest` against a device/emulator.
  */
@@ -165,6 +165,43 @@ class WorkoutMigrationTest {
         db.query("SELECT templateStableId FROM workout_sessions WHERE stableId = 's1'").use { c ->
             c.moveToFirst()
             assertEquals("tpl", c.getString(0))
+        }
+
+        db.close()
+    }
+
+    @Test
+    fun migrate10to11_addsTemplateSetTypesColumn_andPreservesExistingData() {
+        val db = openV7WithOneFoodEntry()
+        AppDatabase.MIGRATION_7_8.migrate(db)
+        AppDatabase.MIGRATION_8_9.migrate(db)
+        AppDatabase.MIGRATION_9_10.migrate(db)
+        db.execSQL("INSERT INTO workout_templates (id, stableId, name, position) VALUES (5, 'tpl', 'Push Day', 0)")
+        db.execSQL(
+            "INSERT INTO template_exercises (templateId, exerciseStableId, position, targetSets) " +
+                "VALUES (5, 'bench', 0, 3)",
+        )
+
+        AppDatabase.MIGRATION_10_11.migrate(db)
+
+        val columns = db.query("PRAGMA table_info(template_exercises)").use { c ->
+            val nameIdx = c.getColumnIndex("name")
+            buildSet { while (c.moveToNext()) add(c.getString(nameIdx)) }
+        }
+        assertTrue(columns.contains("setTypes"))
+
+        // The pre-existing slot survived, with the new column defaulting to null and targetSets intact.
+        db.query("SELECT targetSets, setTypes FROM template_exercises WHERE exerciseStableId = 'bench'").use { c ->
+            c.moveToFirst()
+            assertEquals(3, c.getInt(0))
+            assertTrue(c.isNull(1))
+        }
+
+        // Usable: a saved slot can now record its planned per-set types.
+        db.execSQL("UPDATE template_exercises SET setTypes = 'WARMUP\nNORMAL\nNORMAL' WHERE exerciseStableId = 'bench'")
+        db.query("SELECT setTypes FROM template_exercises WHERE exerciseStableId = 'bench'").use { c ->
+            c.moveToFirst()
+            assertEquals("WARMUP\nNORMAL\nNORMAL", c.getString(0))
         }
 
         db.close()

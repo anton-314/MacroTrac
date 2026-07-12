@@ -267,8 +267,8 @@ class WorkoutSessionViewModel(
                     id = newId(),
                     exerciseStableId = te.exerciseStableId,
                     position = index,
-                    sets = List(te.targetSets) { setIndex ->
-                        SetEntry(id = newId(), position = setIndex, weightKg = 0.0, reps = 0)
+                    sets = te.setTypes.mapIndexed { setIndex, type ->
+                        SetEntry(id = newId(), position = setIndex, weightKg = 0.0, reps = 0, type = type)
                     },
                 )
             }

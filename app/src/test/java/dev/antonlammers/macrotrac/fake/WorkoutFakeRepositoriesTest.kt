@@ -2,6 +2,7 @@ package dev.antonlammers.macrotrac.fake
 
 import dev.antonlammers.macrotrac.domain.model.Exercise
 import dev.antonlammers.macrotrac.domain.model.ExerciseType
+import dev.antonlammers.macrotrac.domain.model.SetType
 import dev.antonlammers.macrotrac.domain.model.TemplateExercise
 import dev.antonlammers.macrotrac.domain.model.WorkoutSession
 import dev.antonlammers.macrotrac.domain.model.WorkoutTemplate
@@ -31,7 +32,10 @@ class WorkoutFakeRepositoriesTest {
         val id = repo.save(
             WorkoutTemplate(
                 stableId = "t", name = "Push",
-                exercises = listOf(TemplateExercise("a", 5, 3), TemplateExercise("b", 5, 4)),
+                exercises = listOf(
+                    TemplateExercise("a", 5, List(3) { SetType.NORMAL }),
+                    TemplateExercise("b", 5, List(4) { SetType.NORMAL }),
+                ),
             ),
         )
         val saved = repo.template(id).first()!!

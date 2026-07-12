@@ -36,6 +36,8 @@ import java.time.LocalDate
 
 class WorkoutRepositoriesTest {
 
+    private fun normalSets(count: Int) = List(count) { SetType.NORMAL }
+
     // --- Exercise catalog ---
 
     @Test
@@ -80,8 +82,8 @@ class WorkoutRepositoriesTest {
             WorkoutTemplate(
                 stableId = "tpl", name = "Push Day",
                 exercises = listOf(
-                    TemplateExercise("bench", position = 0, targetSets = 4),
-                    TemplateExercise("ohp", position = 0, targetSets = 3),
+                    TemplateExercise("bench", position = 0, setTypes = normalSets(4)),
+                    TemplateExercise("ohp", position = 0, setTypes = normalSets(3)),
                 ),
             ),
         )
@@ -97,11 +99,11 @@ class WorkoutRepositoriesTest {
     fun `re-saving a template rewrites its exercise list instead of appending`() = runTest {
         val repo = WorkoutTemplateRepositoryImpl(FakeWorkoutTemplateDao(), ImmediateTransactionRunner())
         val id = repo.save(
-            WorkoutTemplate(stableId = "tpl", name = "Push", exercises = listOf(TemplateExercise("bench", 0, 4))),
+            WorkoutTemplate(stableId = "tpl", name = "Push", exercises = listOf(TemplateExercise("bench", 0, normalSets(4)))),
         )
 
         repo.save(
-            WorkoutTemplate(id = id, stableId = "tpl", name = "Push v2", exercises = listOf(TemplateExercise("dips", 0, 3))),
+            WorkoutTemplate(id = id, stableId = "tpl", name = "Push v2", exercises = listOf(TemplateExercise("dips", 0, normalSets(3)))),
         )
 
         val saved = repo.templates().first().single()
@@ -115,11 +117,11 @@ class WorkoutRepositoriesTest {
         // stableId identifies it as the same template already on the target device.
         val repo = WorkoutTemplateRepositoryImpl(FakeWorkoutTemplateDao(), ImmediateTransactionRunner())
         repo.save(
-            WorkoutTemplate(stableId = "tpl", name = "Push", exercises = listOf(TemplateExercise("bench", 0, 4))),
+            WorkoutTemplate(stableId = "tpl", name = "Push", exercises = listOf(TemplateExercise("bench", 0, normalSets(4)))),
         )
 
         repo.save(
-            WorkoutTemplate(stableId = "tpl", name = "Push v2", exercises = listOf(TemplateExercise("dips", 0, 3))),
+            WorkoutTemplate(stableId = "tpl", name = "Push v2", exercises = listOf(TemplateExercise("dips", 0, normalSets(3)))),
         )
 
         val all = repo.templates().first()
@@ -132,7 +134,7 @@ class WorkoutRepositoriesTest {
     fun `deleting a template removes it and its exercises`() = runTest {
         val repo = WorkoutTemplateRepositoryImpl(FakeWorkoutTemplateDao(), ImmediateTransactionRunner())
         val id = repo.save(
-            WorkoutTemplate(stableId = "tpl", name = "Push", exercises = listOf(TemplateExercise("bench", 0, 4))),
+            WorkoutTemplate(stableId = "tpl", name = "Push", exercises = listOf(TemplateExercise("bench", 0, normalSets(4)))),
         )
 
         repo.delete(id)

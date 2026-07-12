@@ -75,8 +75,8 @@ class WorkoutMappersTest {
             template = WorkoutTemplateEntity(id = 5, stableId = "tpl", name = "Push Day"),
             // Deliberately out of order — mapping must sort by position.
             exercises = listOf(
-                TemplateExerciseEntity(id = 2, templateId = 5, exerciseStableId = "b", position = 1, targetSets = 4),
-                TemplateExerciseEntity(id = 1, templateId = 5, exerciseStableId = "a", position = 0, targetSets = 3),
+                TemplateExerciseEntity(id = 2, templateId = 5, exerciseStableId = "b", position = 1, targetSets = 4, setTypes = "NORMAL\nNORMAL\nNORMAL\nNORMAL"),
+                TemplateExerciseEntity(id = 1, templateId = 5, exerciseStableId = "a", position = 0, targetSets = 3, setTypes = "WARMUP\nNORMAL\nNORMAL"),
             ),
         )
 
@@ -84,19 +84,35 @@ class WorkoutMappersTest {
         assertEquals(5L, domain.id)
         assertEquals(listOf("a", "b"), domain.exercises.map { it.exerciseStableId })
         assertEquals(listOf(0, 1), domain.exercises.map { it.position })
+        assertEquals(listOf(SetType.WARMUP, SetType.NORMAL, SetType.NORMAL), domain.exercises[0].setTypes)
 
         // Re-numbering ignores any stale incoming position and uses list order.
         val template = WorkoutTemplate(
             id = 5, stableId = "tpl", name = "Push Day",
             exercises = listOf(
-                TemplateExercise("a", position = 99, targetSets = 3),
-                TemplateExercise("b", position = 99, targetSets = 4),
+                TemplateExercise("a", position = 99, setTypes = listOf(SetType.WARMUP, SetType.NORMAL, SetType.NORMAL)),
+                TemplateExercise("b", position = 99, setTypes = List(4) { SetType.NORMAL }),
             ),
         )
         val entities = template.exerciseEntities(templateId = 5)
         assertEquals(listOf(0, 1), entities.map { it.position })
         assertEquals(listOf("a", "b"), entities.map { it.exerciseStableId })
         assertEquals(listOf(5L, 5L), entities.map { it.templateId })
+        assertEquals(listOf(3, 4), entities.map { it.targetSets })
+        assertEquals("WARMUP\nNORMAL\nNORMAL", entities[0].setTypes)
+    }
+
+    @Test
+    fun `template exercise rows without a setTypes column fall back to targetSets NORMAL sets`() {
+        val relation = TemplateWithExercises(
+            template = WorkoutTemplateEntity(id = 5, stableId = "tpl", name = "Push Day"),
+            exercises = listOf(
+                TemplateExerciseEntity(id = 1, templateId = 5, exerciseStableId = "a", position = 0, targetSets = 3, setTypes = null),
+            ),
+        )
+
+        val domain = relation.toDomain()
+        assertEquals(List(3) { SetType.NORMAL }, domain.exercises.single().setTypes)
     }
 
     @Test

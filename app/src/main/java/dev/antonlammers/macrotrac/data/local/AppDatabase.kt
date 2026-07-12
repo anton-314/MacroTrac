@@ -28,7 +28,7 @@ import dev.antonlammers.macrotrac.data.local.entity.WorkoutTemplateEntity
         ExerciseEntity::class, WorkoutTemplateEntity::class, TemplateExerciseEntity::class,
         WorkoutSessionEntity::class, SessionExerciseEntity::class, SetEntryEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -158,6 +158,17 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE workout_templates ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("UPDATE workout_templates SET position = id")
                 db.execSQL("ALTER TABLE workout_sessions ADD COLUMN templateStableId TEXT")
+            }
+        }
+
+        /**
+         * Adds the per-set planned type (warmup/normal/drop/failure) to a template exercise slot,
+         * replacing the plain `targetSets` count as the source of truth. Nullable/no backfill — the
+         * mapper falls back to `targetSets` NORMAL sets for rows written before this column existed.
+         */
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE template_exercises ADD COLUMN setTypes TEXT")
             }
         }
     }

@@ -70,7 +70,7 @@ internal object WorkoutMappers {
         stableId = template.stableId,
         name = template.name,
         exercises = exercises.sortedBy { it.position }.map {
-            TemplateExercise(it.exerciseStableId, it.position, it.targetSets)
+            TemplateExercise(it.exerciseStableId, it.position, it.setTypes.toSetTypes(it.targetSets))
         },
     )
 
@@ -85,9 +85,15 @@ internal object WorkoutMappers {
                 templateId = templateId,
                 exerciseStableId = e.exerciseStableId,
                 position = index,
-                targetSets = e.targetSets,
+                targetSets = e.setTypes.size,
+                setTypes = e.setTypes.joinToString(LIST_SEPARATOR) { it.name },
             )
         }
+
+    /** Rows written before the `setTypes` column existed fall back to `targetSets` NORMAL sets. */
+    private fun String?.toSetTypes(targetSets: Int): List<SetType> =
+        if (isNullOrBlank()) List(targetSets) { SetType.NORMAL }
+        else splitField().map { SetType.parse(it) }
 
     // --- Session ---
 

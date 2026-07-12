@@ -309,7 +309,7 @@ private fun EmptyTemplates() {
 
 private fun TemplateListItem.summaryLine(): String {
     val exerciseCount = template.exercises.size
-    val setCount = template.exercises.sumOf { it.targetSets }
+    val setCount = template.exercises.sumOf { it.setTypes.size }
     val exercisePart = if (exerciseCount == 1) "1 Übung" else "$exerciseCount Übungen"
     val setPart = if (setCount == 1) "1 Satz" else "$setCount Sätze"
     return "$exercisePart · $setPart · ${lastUsedDate.lastUsedText()}"

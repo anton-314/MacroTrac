@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.antonlammers.macrotrac.domain.model.Exercise
+import dev.antonlammers.macrotrac.domain.model.SetType
 import dev.antonlammers.macrotrac.domain.model.TemplateExercise
 import dev.antonlammers.macrotrac.domain.model.WorkoutTemplate
 import dev.antonlammers.macrotrac.domain.repository.ExerciseCatalogRepository
@@ -22,13 +23,13 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
-/** One exercise slot being edited: the referenced exercise plus its planned target-set count. */
+/** One exercise slot being edited: the referenced exercise plus its planned sets, in order. */
 data class TemplateSlot(
     /** Stable per-slot client id (survives drag reordering); never persisted. */
     val id: Long,
     val exerciseStableId: String,
     val exerciseName: String,
-    val targetSets: Int,
+    val setTypes: List<SetType>,
 )
 
 data class TemplateEditorUiState(
@@ -106,7 +107,7 @@ class TemplateEditorViewModel @Inject constructor(
                             id = newId(),
                             exerciseStableId = e.exerciseStableId,
                             exerciseName = names[e.exerciseStableId] ?: e.exerciseStableId,
-                            targetSets = e.targetSets,
+                            setTypes = e.setTypes,
                         )
                     },
                 loading = false,
@@ -125,7 +126,7 @@ class TemplateEditorViewModel @Inject constructor(
                 id = newId(),
                 exerciseStableId = exercise.stableId,
                 exerciseName = exercise.name,
-                targetSets = DEFAULT_TARGET_SETS,
+                setTypes = List(DEFAULT_TARGET_SETS) { SetType.NORMAL },
             ),
         )
     }
@@ -135,12 +136,37 @@ class TemplateEditorViewModel @Inject constructor(
         else state.copy(slots = state.slots.filterIndexed { i, _ -> i != index })
     }
 
-    fun setTargetSets(index: Int, targetSets: Int) = _uiState.update { state ->
-        if (index !in state.slots.indices) return@update state
-        val clamped = targetSets.coerceIn(MIN_TARGET_SETS, MAX_TARGET_SETS)
+    /** Appends a planned set (default [SetType.NORMAL]) to the slot, up to [MAX_TARGET_SETS]. */
+    fun addSet(index: Int) = _uiState.update { state ->
+        val slot = state.slots.getOrNull(index) ?: return@update state
+        if (slot.setTypes.size >= MAX_TARGET_SETS) return@update state
         state.copy(
-            slots = state.slots.mapIndexed { i, slot ->
-                if (i == index) slot.copy(targetSets = clamped) else slot
+            slots = state.slots.mapIndexed { i, s ->
+                if (i == index) s.copy(setTypes = s.setTypes + SetType.NORMAL) else s
+            },
+        )
+    }
+
+    /** Removes the planned set at [setIndex], keeping at least [MIN_TARGET_SETS]. */
+    fun removeSet(index: Int, setIndex: Int) = _uiState.update { state ->
+        val slot = state.slots.getOrNull(index) ?: return@update state
+        if (setIndex !in slot.setTypes.indices || slot.setTypes.size <= MIN_TARGET_SETS) return@update state
+        state.copy(
+            slots = state.slots.mapIndexed { i, s ->
+                if (i == index) s.copy(setTypes = s.setTypes.filterIndexed { si, _ -> si != setIndex }) else s
+            },
+        )
+    }
+
+    /** Changes the planned type of the set at [setIndex]. */
+    fun setSetType(index: Int, setIndex: Int, type: SetType) = _uiState.update { state ->
+        val slot = state.slots.getOrNull(index) ?: return@update state
+        if (setIndex !in slot.setTypes.indices) return@update state
+        state.copy(
+            slots = state.slots.mapIndexed { i, s ->
+                if (i == index) {
+                    s.copy(setTypes = s.setTypes.mapIndexed { si, t -> if (si == setIndex) type else t })
+                } else s
             },
         )
     }
@@ -166,7 +192,7 @@ class TemplateEditorViewModel @Inject constructor(
                 TemplateExercise(
                     exerciseStableId = slot.exerciseStableId,
                     position = index,
-                    targetSets = slot.targetSets,
+                    setTypes = slot.setTypes,
                 )
             },
         )
