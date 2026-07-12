@@ -1,18 +1,16 @@
 package dev.antonlammers.macrotrac.domain.model
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FoodTagTest {
 
     @Test
-    fun `only HEALTHY counts as clean`() {
-        assertTrue(FoodTag.HEALTHY.isClean)
-        assertFalse(FoodTag.NEUTRAL.isClean)
-        assertFalse(FoodTag.UNHEALTHY.isClean)
-        assertFalse(FoodTag.NONE.isClean)
+    fun `HEALTHY counts fully clean, NEUTRAL half, UNHEALTHY and NONE not at all`() {
+        assertEquals(1.0, FoodTag.HEALTHY.cleanWeight, 0.0)
+        assertEquals(0.5, FoodTag.NEUTRAL.cleanWeight, 0.0)
+        assertEquals(0.0, FoodTag.UNHEALTHY.cleanWeight, 0.0)
+        assertEquals(0.0, FoodTag.NONE.cleanWeight, 0.0)
     }
 
     @Test

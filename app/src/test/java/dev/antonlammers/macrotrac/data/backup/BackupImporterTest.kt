@@ -189,6 +189,9 @@ class BackupImporterTest {
         assertEquals(LocalDate.parse("2026-07-05"), session.date)
         assertFalse(session.isActive)
         assertEquals("Guter Tag", session.note)
+        // The session's link back to the template it was started from must survive the round-trip
+        // too — otherwise the templates list can't show "last used" after a fresh-device restore.
+        assertEquals("custom-template", session.templateStableId)
         assertEquals(listOf("cat-squat", "custom-klimmzug"), session.exercises.map { it.exerciseStableId })
 
         val squat = session.exercises[0]
@@ -331,6 +334,7 @@ class BackupImporterTest {
         startedAtMs = 1_720_000_000_000,
         endedAtMs = 1_720_000_360_000,
         note = "Guter Tag",
+        templateStableId = "custom-template",
         exercises = listOf(
             SessionExercise(
                 exerciseStableId = "cat-squat",

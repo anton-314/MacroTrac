@@ -186,6 +186,22 @@ class StatsViewModelTest {
     }
 
     @Test
+    fun `NEUTRAL kcal counts half toward overall clean percent`() = runTest {
+        val today = LocalDate.now()
+        foodRepo.add(buildEntry(kcal = 200.0, date = today, tag = FoodTag.HEALTHY))
+        foodRepo.add(buildEntry(kcal = 200.0, date = today, tag = FoodTag.NEUTRAL))
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state.overallCleanPercent == null) state = awaitItem()
+
+            // 200 (HEALTHY, full) + 100 (NEUTRAL, half of 200) = 300 clean of 400 total = 75%.
+            assertEquals(75, state.overallCleanPercent)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `overall clean percent is null without entries`() = runTest {
         viewModel.uiState.test {
             assertEquals(null, awaitItem().overallCleanPercent)

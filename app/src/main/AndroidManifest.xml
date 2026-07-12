@@ -39,6 +39,10 @@
                 android:resource="@xml/macro_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".notification.RestTimerAlarmReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

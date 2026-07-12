@@ -48,6 +48,7 @@ class WorkoutBackupTest {
             date = LocalDate.parse("2026-07-01"),
             isActive = false,
             startedAtMs = 1000,
+            templateStableId = "push-tpl",
             exercises = listOf(
                 SessionExercise(
                     exerciseStableId = "bench",

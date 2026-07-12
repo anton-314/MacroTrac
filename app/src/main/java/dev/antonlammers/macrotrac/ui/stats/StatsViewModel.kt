@@ -190,11 +190,11 @@ class StatsViewModel @Inject constructor(
         }
     }
 
-    /** Clean share of a set of entries in percent (0–100): healthy kcal / total kcal; 0 if empty. */
+    /** Clean share of a set of entries in percent (0–100): weighted clean kcal / total kcal; 0 if empty. */
     private fun cleanPercent(entries: List<FoodEntry>): Double {
         val total = entries.sumOf { it.kcal }
         if (total <= 0.0) return 0.0
-        val clean = entries.filter { it.tag.isClean }.sumOf { it.kcal }
+        val clean = entries.sumOf { it.kcal * it.tag.cleanWeight }
         return clean / total * 100.0
     }
 

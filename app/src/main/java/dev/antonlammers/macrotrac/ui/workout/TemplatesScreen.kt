@@ -252,8 +252,8 @@ private fun SwipeBackground(target: SwipeToDismissBoxValue) {
     }
 }
 
-/** A flat template card: a drag handle, name (serif) over a mono summary line (exercise/set counts
- *  plus when it was last trained), and long-press-to-drag reordering via [dragHandleModifier]. */
+/** A flat template card: a drag handle, name (serif) over a mono "last trained" line, and
+ *  long-press-to-drag reordering via [dragHandleModifier]. */
 @Composable
 private fun TemplateCard(item: TemplateListItem, dragHandleModifier: Modifier, onClick: () -> Unit) {
     Row(
@@ -276,7 +276,7 @@ private fun TemplateCard(item: TemplateListItem, dragHandleModifier: Modifier, o
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(item.template.name, style = MaterialTheme.typography.titleMedium)
             Text(
-                item.summaryLine(),
+                item.lastUsedDate.lastUsedText(),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -305,14 +305,6 @@ private fun EmptyTemplates() {
             textAlign = TextAlign.Center,
         )
     }
-}
-
-private fun TemplateListItem.summaryLine(): String {
-    val exerciseCount = template.exercises.size
-    val setCount = template.exercises.sumOf { it.setTypes.size }
-    val exercisePart = if (exerciseCount == 1) "1 Übung" else "$exerciseCount Übungen"
-    val setPart = if (setCount == 1) "1 Satz" else "$setCount Sätze"
-    return "$exercisePart · $setPart · ${lastUsedDate.lastUsedText()}"
 }
 
 /** "Heute" / "Gestern" / "Vor N Tagen" / "Noch nie trainiert" — orientation, not a precise date. */

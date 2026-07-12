@@ -137,12 +137,12 @@ data class OverviewUiState(
     fun kcalForTag(tag: FoodTag): Double =
         entries.filter { it.tag == tag }.sumOf { it.kcal }
 
-    /** kcal from foods tagged as clean (only [FoodTag.HEALTHY] counts). */
-    val cleanKcal: Double get() = entries.filter { it.tag.isClean }.sumOf { it.kcal }
+    /** kcal-weighted clean contribution ([FoodTag.HEALTHY] counts fully, [FoodTag.NEUTRAL] half). */
+    val cleanKcal: Double get() = entries.sumOf { it.kcal * it.tag.cleanWeight }
 
     /**
      * Share of consumed kcal that is clean, in percent (0–100), or `null` when nothing is logged.
-     * Untagged and non-healthy kcal count against it, so the target of 80–90% rewards tagging.
+     * Untagged and unhealthy kcal count against it, so the target of 80–90% rewards tagging.
      */
     val cleanPercent: Int?
         get() = if (totalKcal > 0) Math.round(cleanKcal / totalKcal * 100).toInt() else null
