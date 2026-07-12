@@ -87,8 +87,9 @@ Alltag selten gebraucht, und wandert in einen Einstellungs-/Profil-Hub.
 
 ### 3.2 Vorlagen (Templates / Routinen) ✅ Inhalt entschieden
 - Nutzer erstellt, benennt und speichert Workouts im Voraus (z. B. „Push Day").
-- **Eine Vorlage = geordnete Liste von Übungen, je mit geplanter Ziel-Satzanzahl.** Gewicht und
-  Reps sind **nicht** Teil der Vorlage — sie kommen beim Training und werden über die
+- **Eine Vorlage = geordnete Liste von Übungen, je mit einer geplanten Satz-Sequenz** — pro Satz
+  wird der Typ festgelegt (Aufwärmen/Normal/Drop/Failure, `SetType`), nicht nur eine reine Anzahl.
+  Gewicht und Reps sind **nicht** Teil der Vorlage — sie kommen beim Training und werden über die
   Inline-Historie (§3.3) aus dem letzten Mal vorbelegt.
 - Vorlagen sind Ausgangspunkt für eine Live-Session.
 
@@ -168,7 +169,8 @@ Neue Room-Entities (Arbeitsstand, Android-frei gespiegelt in `domain/model`):
   generierte UUID. Alle Verweise (Vorlagen, Sessions, Backup) referenzieren diesen Schlüssel, **nie**
   die Auto-Increment-Zeilen-ID → geräteübergreifender Import bleibt konsistent. Weitere Felder:
   `type: ExerciseType`, `isCustom`, optional `restSeconds`.
-- `WorkoutTemplate` + `TemplateExercise` — Vorlage und ihre Übungen (geordnet, mit Ziel-Satzanzahl).
+- `WorkoutTemplate` + `TemplateExercise` — Vorlage und ihre Übungen (geordnet, mit geplanter
+  Satz-Sequenz je `SetType`).
 - `WorkoutSession` — Einheit mit **Status** (`isActive`/abgeschlossen), Datum, Start/Ende/Dauer,
   Notiz. Höchstens eine aktive Session gleichzeitig; wird fortlaufend gespeichert (§3.3).
 - `SessionExercise` (mit nullable `supersetGroupId` für spätere Supersätze) + `SetEntry` (Gewicht,
@@ -250,7 +252,7 @@ Nummeriert; werden nach Klärung in die jeweiligen Abschnitte eingearbeitet und 
   nicht in v1, aber additiv erweiterbar modelliert.
 - [x] **F3 — Supersätze** ✅ in v1 weglassen (Modell additiv erweiterbar via `supersetGroupId`).
 - [x] **F4 — Korrelations-Feature:** ✅ spätere Phase (Phase 10).
-- [x] **F5 — Vorlagen-Inhalt:** ✅ Übungen + Ziel-Satzanzahl (kein Ziel-Gewicht/-Reps).
+- [x] **F5 — Vorlagen-Inhalt:** ✅ Übungen + geplante Satz-Sequenz je `SetType` (kein Ziel-Gewicht/-Reps).
 - [x] **F6 — PR-Definition:** ✅ nur Max-Gewicht pro Übung; live + in Historie markiert.
 - [x] **F7 — Ruhe-Timer:** ✅ Default 90 s, pro Übung überschreibbar, Hintergrund + Notification +
   Ton/Vibration.
