@@ -1,4 +1,4 @@
-# MacroTrac
+# Trainist
 
 A minimalistic, open-source calorie and nutrient tracking app for Android.
 
@@ -17,7 +17,7 @@ A minimalistic, open-source calorie and nutrient tracking app for Android.
 
 ## Download
 
-Die aktuellste APK ist immer direkt als [GitHub Release](https://github.com/anton-314/MacroTrac/releases/tag/latest) verfügbar — kein Build nötig.
+Die aktuellste APK ist immer direkt als [GitHub Release](https://github.com/anton-314/Trainist/releases/tag/latest) verfügbar — kein Build nötig.
 
 ## Requirements
 
@@ -27,8 +27,8 @@ Die aktuellste APK ist immer direkt als [GitHub Release](https://github.com/anto
 
 ```bash
 # Clone the repo
-git clone https://github.com/anton-314/MacroTrac.git
-cd MacroTrac
+git clone https://github.com/anton-314/Trainist.git
+cd Trainist
 
 # Build a debug APK
 ./gradlew assembleDebug

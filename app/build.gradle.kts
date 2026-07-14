@@ -7,13 +7,13 @@ plugins {
 }
 
 android {
-    namespace = "dev.antonlammers.macrotrac"
+    namespace = "dev.antonlammers.trainist"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "dev.antonlammers.macrotrac"
+        applicationId = "dev.antonlammers.trainist"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
