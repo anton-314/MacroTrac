@@ -50,4 +50,4 @@ JAVA_HOME=/path/to/jdk ./gradlew assembleDebug
 
 ## License
 
-[MIT](LICENSE)
+Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE) — free to use, modify, and share for any noncommercial purpose; commercial use (including resale) is not permitted.
