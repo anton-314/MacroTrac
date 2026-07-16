@@ -76,13 +76,15 @@ fun StatsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(padding),
         ) {
-            // Time range selector
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Time range selector — pinned above the scrolling content so it's always reachable.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 TimeRange.entries.forEach { range ->
                     FilterChip(
                         selected = state.timeRange == range,
@@ -102,124 +104,132 @@ fun StatsScreen(
                 }
             }
 
-            // Chart cards — user-orderable via drag handle (spec addendum: consistent with the
-            // workout module's drag-to-reorder pattern).
-            DragReorderColumn(
-                items = state.cardOrder,
-                key = { it },
-                onMove = statsViewModel::moveCard,
-                modifier = Modifier.fillMaxWidth(),
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) { _, card, rowModifier, dragHandleModifier, isDragging ->
-                when (card) {
-                    StatCardType.CALORIES -> ChartCard("Kalorien", rowModifier, dragHandleModifier, isDragging) {
-                        if (state.caloriePoints.isEmpty() || state.caloriePoints.all { it.value == 0.0 }) {
-                            ChartEmptyHint("Noch keine Einträge")
-                        } else {
-                            BarChart(
-                                points = state.caloriePoints,
-                                goalValue = state.goalKcal,
-                                barColor = CalorieColor,
-                                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                goalColor = MaterialTheme.colorScheme.primary,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    StatCardType.CLEAN_EATING -> ChartCard(
-                        title = "Clean-Ernährung",
-                        rowModifier = rowModifier,
-                        dragHandleModifier = dragHandleModifier,
-                        isDragging = isDragging,
-                        trailing = {
-                            state.overallCleanPercent?.let { pct ->
-                                Text(
-                                    "Ø $pct %",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            ) {
+                // Chart cards — user-orderable via drag handle (spec addendum: consistent with the
+                // workout module's drag-to-reorder pattern).
+                DragReorderColumn(
+                    items = state.cardOrder,
+                    key = { it },
+                    onMove = statsViewModel::moveCard,
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) { _, card, rowModifier, dragHandleModifier, isDragging ->
+                    when (card) {
+                        StatCardType.CALORIES -> ChartCard("Kalorien", rowModifier, dragHandleModifier, isDragging) {
+                            if (state.caloriePoints.isEmpty() || state.caloriePoints.all { it.value == 0.0 }) {
+                                ChartEmptyHint("Noch keine Einträge")
+                            } else {
+                                BarChart(
+                                    points = state.caloriePoints,
+                                    goalValue = state.goalKcal,
+                                    barColor = CalorieColor,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    goalColor = MaterialTheme.colorScheme.primary,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                        },
-                    ) {
-                        if (state.overallCleanPercent == null) {
-                            ChartEmptyHint("Noch keine getaggten Einträge")
-                        } else {
-                            BarChart(
-                                points = state.cleanPoints,
-                                goalValue = 0.0,
-                                fixedMaxValue = 100.0,
-                                barColor = TagHealthyColor,
-                                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                goalColor = MaterialTheme.colorScheme.primary,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
                         }
-                    }
-                    StatCardType.WEIGHT -> ChartCard("Gewicht", rowModifier, dragHandleModifier, isDragging) {
-                        val weight = state.weight
-                        if (!weight.hasData) {
-                            ChartEmptyHint("Noch keine Gewichtsdaten")
-                        } else {
-                            WeightSummary(weight)
-                            WeightChart(
-                                data = weight,
-                                range = state.timeRange,
-                                rawColor = ProteinColor,
-                                trendColor = MaterialTheme.colorScheme.tertiary,
-                                targetColor = MaterialTheme.colorScheme.primary,
-                                gridColor = MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    StatCardType.TRAINING_FREQUENCY -> ChartCard("Trainingsfrequenz", rowModifier, dragHandleModifier, isDragging) {
-                        if (state.frequencyPoints.isEmpty() || state.frequencyPoints.all { it.value == 0.0 }) {
-                            ChartEmptyHint("Noch keine Einheiten")
-                        } else {
-                            BarChart(
-                                points = state.frequencyPoints,
-                                goalValue = 0.0,
-                                barColor = MaterialTheme.colorScheme.primary,
-                                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                goalColor = MaterialTheme.colorScheme.primary,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    StatCardType.STRENGTH -> ChartCard("Kraftverlauf", rowModifier, dragHandleModifier, isDragging) {
-                        if (state.strengthExercises.isEmpty()) {
-                            ChartEmptyHint("Noch keine Trainingsdaten")
-                        } else {
-                            ExerciseSelector(
-                                exercises = state.strengthExercises,
-                                selectedId = state.selectedExerciseId,
-                                onSelect = statsViewModel::setSelectedExercise,
-                            )
-                            if (!state.strength.hasData) {
-                                ChartEmptyHint("Für diese Übung keine Daten im Zeitraum")
-                            } else {
-                                val data = state.strength
-                                val range = state.timeRange
-                                val tickDates = remember(data.rangeStart, data.rangeEnd, range) {
-                                    weightTickDates(data.rangeStart, data.rangeEnd, range)
+                        StatCardType.CLEAN_EATING -> ChartCard(
+                            title = "Clean-Ernährung",
+                            rowModifier = rowModifier,
+                            dragHandleModifier = dragHandleModifier,
+                            isDragging = isDragging,
+                            trailing = {
+                                state.overallCleanPercent?.let { pct ->
+                                    Text(
+                                        "Ø $pct %",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
                                 }
-                                val tickFmt = remember(range) { weightTickFormatter(range) }
-                                StrengthChart(
-                                    data = data,
-                                    tickDates = tickDates,
-                                    tickFormatter = tickFmt,
-                                    lineColor = MaterialTheme.colorScheme.primary,
+                            },
+                        ) {
+                            if (state.overallCleanPercent == null) {
+                                ChartEmptyHint("Noch keine getaggten Einträge")
+                            } else {
+                                BarChart(
+                                    points = state.cleanPoints,
+                                    goalValue = 0.0,
+                                    fixedMaxValue = 100.0,
+                                    barColor = TagHealthyColor,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    goalColor = MaterialTheme.colorScheme.primary,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        StatCardType.WEIGHT -> ChartCard("Gewicht", rowModifier, dragHandleModifier, isDragging) {
+                            val weight = state.weight
+                            if (!weight.hasData) {
+                                ChartEmptyHint("Noch keine Gewichtsdaten")
+                            } else {
+                                WeightSummary(weight)
+                                WeightChart(
+                                    data = weight,
+                                    range = state.timeRange,
+                                    rawColor = ProteinColor,
+                                    trendColor = MaterialTheme.colorScheme.tertiary,
+                                    targetColor = MaterialTheme.colorScheme.primary,
                                     gridColor = MaterialTheme.colorScheme.surfaceVariant,
                                     labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
+                        StatCardType.TRAINING_FREQUENCY -> ChartCard("Trainingsfrequenz", rowModifier, dragHandleModifier, isDragging) {
+                            if (state.frequencyPoints.isEmpty() || state.frequencyPoints.all { it.value == 0.0 }) {
+                                ChartEmptyHint("Noch keine Einheiten")
+                            } else {
+                                BarChart(
+                                    points = state.frequencyPoints,
+                                    goalValue = 0.0,
+                                    barColor = MaterialTheme.colorScheme.primary,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    goalColor = MaterialTheme.colorScheme.primary,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        StatCardType.STRENGTH -> ChartCard("Kraftverlauf", rowModifier, dragHandleModifier, isDragging) {
+                            if (state.strengthExercises.isEmpty()) {
+                                ChartEmptyHint("Noch keine Trainingsdaten")
+                            } else {
+                                ExerciseSelector(
+                                    exercises = state.strengthExercises,
+                                    selectedId = state.selectedExerciseId,
+                                    onSelect = statsViewModel::setSelectedExercise,
+                                )
+                                if (!state.strength.hasData) {
+                                    ChartEmptyHint("Für diese Übung keine Daten im Zeitraum")
+                                } else {
+                                    val data = state.strength
+                                    val range = state.timeRange
+                                    val tickDates = remember(data.rangeStart, data.rangeEnd, range) {
+                                        weightTickDates(data.rangeStart, data.rangeEnd, range)
+                                    }
+                                    val tickFmt = remember(range) { weightTickFormatter(range) }
+                                    StrengthChart(
+                                        data = data,
+                                        tickDates = tickDates,
+                                        tickFormatter = tickFmt,
+                                        lineColor = MaterialTheme.colorScheme.primary,
+                                        gridColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-            }
 
-            // Extra bottom breathing room so the last card clears the navigation bar.
-            Spacer(Modifier.height(24.dp))
+                // Extra bottom breathing room so the last card clears the navigation bar.
+                Spacer(Modifier.height(24.dp))
+            }
         }
     }
 }
