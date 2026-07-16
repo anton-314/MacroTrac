@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.antonlammers.trainist.domain.InlineHistory
 import dev.antonlammers.trainist.domain.RestTimer
 import dev.antonlammers.trainist.domain.SetPerformance
+import dev.antonlammers.trainist.domain.TemplateUpdate
 import dev.antonlammers.trainist.domain.WorkoutMetrics
 import dev.antonlammers.trainist.domain.model.Exercise
 import dev.antonlammers.trainist.domain.model.ExerciseType
@@ -14,6 +15,7 @@ import dev.antonlammers.trainist.domain.model.SessionExercise
 import dev.antonlammers.trainist.domain.model.SetEntry
 import dev.antonlammers.trainist.domain.model.SetType
 import dev.antonlammers.trainist.domain.model.WorkoutSession
+import dev.antonlammers.trainist.domain.model.WorkoutTemplate
 import dev.antonlammers.trainist.domain.repository.ExerciseCatalogRepository
 import dev.antonlammers.trainist.domain.repository.WeightRepository
 import dev.antonlammers.trainist.domain.repository.WorkoutSessionRepository
@@ -138,6 +140,14 @@ class WorkoutSessionViewModel(
     private val _finished = MutableStateFlow(false)
     /** Flips to true once the session is finished or discarded, signalling the screen to pop back. */
     val finished: StateFlow<Boolean> = _finished.asStateFlow()
+
+    private val _pendingTemplateUpdate = MutableStateFlow<WorkoutTemplate?>(null)
+    /**
+     * Set on finish when a template-based session diverged structurally from its template: holds the
+     * merged template to offer as an update ([TemplateUpdate]). The screen shows a confirm dialog and
+     * calls [confirmTemplateUpdate]/[dismissTemplateUpdate]; null when there is nothing to offer.
+     */
+    val pendingTemplateUpdate: StateFlow<WorkoutTemplate?> = _pendingTemplateUpdate.asStateFlow()
 
     // --- rest timer ---
 
@@ -325,11 +335,29 @@ class WorkoutSessionViewModel(
 
     fun toggleSetCompleted(exerciseIndex: Int, setIndex: Int) {
         val session = _session.value ?: return
-        val set = session.exercises.getOrNull(exerciseIndex)?.sets?.getOrNull(setIndex) ?: return
-        val nowCompleted = !set.completed
-        mutateSet(exerciseIndex, setIndex) { it.copy(completed = nowCompleted) }
-        // Checking a set off starts the rest timer; unchecking never does.
-        if (nowCompleted) startRest(session.exercises[exerciseIndex].exerciseStableId)
+        val exercise = session.exercises.getOrNull(exerciseIndex) ?: return
+        val set = exercise.sets.getOrNull(setIndex) ?: return
+        // Unchecking never starts a rest and never touches the values.
+        if (set.completed) {
+            mutateSet(exerciseIndex, setIndex) { it.copy(completed = false) }
+            return
+        }
+        // Checking a set off with empty fields adopts the inline-history "last time" placeholder as if
+        // it had been typed (spec addendum — one less thing to fill in), then starts the rest timer.
+        viewModelScope.launch {
+            val hint = InlineHistory.placeholderForSet(
+                InlineHistory.lastPerformance(sessions.sessions().first(), exercise.exerciseStableId),
+                setIndex,
+            )
+            mutateSet(exerciseIndex, setIndex) { s ->
+                s.copy(
+                    completed = true,
+                    weightKg = if (s.weightKg == 0.0 && hint != null) hint.weightKg else s.weightKg,
+                    reps = if (s.reps == 0 && hint != null) hint.reps else s.reps,
+                )
+            }
+            startRest(exercise.exerciseStableId)
+        }
     }
 
     fun setSetType(exerciseIndex: Int, setIndex: Int, type: SetType) =
@@ -445,12 +473,43 @@ class WorkoutSessionViewModel(
         viewModelScope.launch {
             val session = _session.value
             if (session != null && totalVolumeKg(session) <= 0.0) {
+                // An empty workout is discarded, not kept — and there is nothing to sync to a template.
                 if (session.id != 0L) sessions.delete(session.id)
-            } else {
-                persist()
+                _finished.value = true
+                return@launch
             }
+            persist()
+            // Offer to fold this session's changes back into its template (spec addendum). If nothing
+            // structural changed (or it was a free session), finish straight away.
+            val merged = mergedTemplateUpdate(_session.value)
+            if (merged != null) _pendingTemplateUpdate.value = merged else _finished.value = true
+        }
+    }
+
+    /**
+     * The session's template with this session's changes merged in, or null if there is nothing to
+     * update (free session, template gone, or the merge would reproduce the template exactly).
+     */
+    private suspend fun mergedTemplateUpdate(session: WorkoutSession?): WorkoutTemplate? {
+        val stableId = session?.templateStableId ?: return null
+        val template = templates.templates().first().firstOrNull { it.stableId == stableId } ?: return null
+        return TemplateUpdate.merge(template, session)
+    }
+
+    /** Confirms the offered template update: persists the merged template, then finishes. */
+    fun confirmTemplateUpdate() {
+        val merged = _pendingTemplateUpdate.value
+        viewModelScope.launch {
+            if (merged != null) templates.save(merged)
+            _pendingTemplateUpdate.value = null
             _finished.value = true
         }
+    }
+
+    /** Dismisses the offered template update, leaving the template unchanged, then finishes. */
+    fun dismissTemplateUpdate() {
+        _pendingTemplateUpdate.value = null
+        _finished.value = true
     }
 
     /** Total volume across all exercises — a session with no logged weight/reps is not worth keeping. */

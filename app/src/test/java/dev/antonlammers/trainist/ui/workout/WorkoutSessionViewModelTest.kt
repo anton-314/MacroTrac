@@ -592,6 +592,172 @@ class WorkoutSessionViewModelTest {
         assertTrue(sessions.sessions().first().isEmpty())
     }
 
+    // --- adopting inline-history placeholders on check-off ---
+
+    private suspend fun saveCompletedPast(exerciseStableId: String, sets: List<Pair<Double, Int>>) {
+        sessions.save(
+            WorkoutSession(
+                stableId = "past-$exerciseStableId",
+                date = java.time.LocalDate.of(2026, 7, 1),
+                isActive = false,
+                startedAtMs = 1L,
+                endedAtMs = 2L,
+                exercises = listOf(
+                    SessionExercise(
+                        exerciseStableId = exerciseStableId,
+                        position = 0,
+                        sets = sets.mapIndexed { i, (w, r) ->
+                            SetEntry(position = i, weightKg = w, reps = r, completed = true)
+                        },
+                    ),
+                ),
+            ),
+        )
+    }
+
+    private suspend fun templateWith(exerciseStableId: String, setCount: Int): Long = templates.save(
+        WorkoutTemplate(
+            stableId = "t",
+            name = "Push",
+            exercises = listOf(TemplateExercise(exerciseStableId, 0, List(setCount) { SetType.NORMAL })),
+        ),
+    )
+
+    @Test
+    fun `checking an empty set off adopts the inline-history placeholder as its values`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        saveCompletedPast("bench", listOf(80.0 to 8, 82.5 to 6))
+        val vm = viewModel(templateWith("bench", 2))
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+
+        vm.toggleSetCompleted(0, 0)
+        advanceUntilIdle()
+
+        val set0 = vm.uiState.value.exercises.single().sets[0]
+        assertTrue(set0.completed)
+        assertEquals(80.0, set0.weightKg, 0.0)
+        assertEquals(8, set0.reps)
+    }
+
+    @Test
+    fun `checking a set off does not overwrite values the user already entered`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        saveCompletedPast("bench", listOf(80.0 to 8, 82.5 to 6))
+        val vm = viewModel(templateWith("bench", 2))
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+
+        vm.setWeight(0, 0, 100.0)
+        vm.setReps(0, 0, 3)
+        advanceUntilIdle()
+        vm.toggleSetCompleted(0, 0)
+        advanceUntilIdle()
+
+        val set0 = vm.uiState.value.exercises.single().sets[0]
+        assertEquals(100.0, set0.weightKg, 0.0)
+        assertEquals(3, set0.reps)
+    }
+
+    @Test
+    fun `no inline history means an empty set stays empty when checked off`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        val vm = viewModel(templateWith("bench", 1))
+        subscribe(vm.uiState)
+        advanceUntilIdle()
+
+        vm.toggleSetCompleted(0, 0)
+        advanceUntilIdle()
+
+        val set0 = vm.uiState.value.exercises.single().sets[0]
+        assertTrue(set0.completed)
+        assertEquals(0.0, set0.weightKg, 0.0)
+        assertEquals(0, set0.reps)
+    }
+
+    // --- offering to update the template on finish ---
+
+    /** Logs [exerciseIndex]'s sets with real weight/reps and checks each off (so volume > 0). */
+    private suspend fun WorkoutSessionViewModel.logAndCompleteAll(scope: TestScope, exerciseIndex: Int) {
+        val count = uiState.value.exercises[exerciseIndex].sets.size
+        repeat(count) { setIndex ->
+            setWeight(exerciseIndex, setIndex, 80.0)
+            setReps(exerciseIndex, setIndex, 8)
+        }
+        scope.advanceUntilIdle()
+        repeat(count) { setIndex -> toggleSetCompleted(exerciseIndex, setIndex) }
+        scope.advanceUntilIdle()
+    }
+
+    @Test
+    fun `finishing a template session with an added set offers a template update, confirm persists it`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        val vm = viewModel(templateWith("bench", 2))
+        subscribe(vm.uiState)
+        subscribe(vm.finished)
+        advanceUntilIdle()
+
+        vm.addSet(0) // 2 planned + 1 added = 3
+        advanceUntilIdle()
+        vm.logAndCompleteAll(this, 0)
+
+        vm.finish()
+        advanceUntilIdle()
+
+        // The screen stays open on the update dialog instead of popping.
+        assertFalse(vm.finished.value)
+        val merged = vm.pendingTemplateUpdate.value
+        assertNotNull(merged)
+        assertEquals(3, merged!!.exercises.single().setTypes.size)
+
+        vm.confirmTemplateUpdate()
+        advanceUntilIdle()
+        assertTrue(vm.finished.value)
+        assertNull(vm.pendingTemplateUpdate.value)
+        val stored = templates.templates().first().single { it.stableId == "t" }
+        assertEquals(3, stored.exercises.single().setTypes.size)
+    }
+
+    @Test
+    fun `dismissing the template update leaves the template unchanged and finishes`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        val vm = viewModel(templateWith("bench", 2))
+        subscribe(vm.uiState)
+        subscribe(vm.finished)
+        advanceUntilIdle()
+
+        vm.addSet(0)
+        advanceUntilIdle()
+        vm.logAndCompleteAll(this, 0)
+
+        vm.finish()
+        advanceUntilIdle()
+        assertNotNull(vm.pendingTemplateUpdate.value)
+
+        vm.dismissTemplateUpdate()
+        advanceUntilIdle()
+        assertTrue(vm.finished.value)
+        assertNull(vm.pendingTemplateUpdate.value)
+        val stored = templates.templates().first().single { it.stableId == "t" }
+        assertEquals(2, stored.exercises.single().setTypes.size)
+    }
+
+    @Test
+    fun `finishing a template session with no structural change offers no update`() = runTest {
+        catalog.upsertAll(listOf(exercise("bench", "Bench Press")))
+        val vm = viewModel(templateWith("bench", 2))
+        subscribe(vm.uiState)
+        subscribe(vm.finished)
+        advanceUntilIdle()
+
+        vm.logAndCompleteAll(this, 0) // exactly the two planned NORMAL sets
+
+        vm.finish()
+        advanceUntilIdle()
+        assertTrue(vm.finished.value)
+        assertNull(vm.pendingTemplateUpdate.value)
+    }
+
     private companion object {
         const val FIXED_CLOCK = 1_000L
     }
