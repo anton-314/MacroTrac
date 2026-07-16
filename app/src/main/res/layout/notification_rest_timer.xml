@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Custom content view for the ongoing/paused rest-timer notification. Shows the remaining time
+    LARGE (not the tiny native "when" chronometer). The Chronometer counts down natively to a base
+    in the SystemClock.elapsedRealtime() timebase, so it stays live even after the app process is
+    gone; the paused state hides it and shows the frozen mm:ss in @id/rest_time_static instead.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
+
+    <TextView
+        android:id="@+id/rest_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textSize="14sp"
+        tools:text="Satzpause · Bankdrücken" />
+
+    <Chronometer
+        android:id="@+id/rest_chronometer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textSize="34sp"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif-medium" />
+
+    <TextView
+        android:id="@+id/rest_time_static"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textSize="34sp"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif-medium"
+        android:visibility="gone"
+        tools:text="1:23" />
+
+</LinearLayout>
