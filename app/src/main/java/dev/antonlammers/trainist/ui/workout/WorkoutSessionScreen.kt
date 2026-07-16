@@ -261,9 +261,9 @@ private fun ExerciseCard(
             }
         }
 
-        // Column captions
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(36.dp)) // spacer for the drag-handle column
+        // Column captions — spacing must mirror SetRow's spacedBy(8.dp) so captions sit above their fields.
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.width(28.dp)) // spacer for the drag-handle column
             Caption("SATZ", Modifier.width(32.dp))
             Caption(weightCaption, Modifier.weight(1f))
             Caption("WDH", Modifier.weight(1f))
