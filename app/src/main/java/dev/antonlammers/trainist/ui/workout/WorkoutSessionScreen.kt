@@ -83,6 +83,7 @@ fun WorkoutSessionScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val finished by viewModel.finished.collectAsStateWithLifecycle()
     val restTimer by viewModel.restTimer.collectAsStateWithLifecycle()
+    val pendingTemplateUpdate by viewModel.pendingTemplateUpdate.collectAsStateWithLifecycle()
     var showPicker by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
 
@@ -125,6 +126,26 @@ fun WorkoutSessionScreen(
             onPick = { exercise ->
                 viewModel.addExercise(exercise)
                 showPicker = false
+            },
+        )
+    }
+
+    pendingTemplateUpdate?.let { merged ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissTemplateUpdate,
+            title = { Text("Vorlage aktualisieren?") },
+            text = {
+                Text(
+                    "Du hast diese Einheit gegenüber der Vorlage »${merged.name}« verändert. " +
+                        "Sollen die Änderungen (z. B. mehr Sätze oder geänderte Satztypen) für das " +
+                        "nächste Mal übernommen werden? Ausgelassene Übungen bleiben erhalten.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirmTemplateUpdate) { Text("Aktualisieren") }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::dismissTemplateUpdate) { Text("Beibehalten") }
             },
         )
     }
@@ -339,9 +360,11 @@ private fun SetRow(
     onDelete: () -> Unit,
 ) {
     // Local text is the field's source of truth (so intermediate values like "82." survive); it is
-    // seeded from the set and re-seeded only when the stable set id changes (never mid-edit/reorder).
-    var weightText by remember(set.id) { mutableStateOf(weightToText(set.weightKg)) }
-    var repsText by remember(set.id) { mutableStateOf(repsToText(set.reps)) }
+    // seeded from the set and re-seeded when the stable set id changes (never mid-edit/reorder) or when
+    // the set gets checked off — so the values adopted from the inline-history placeholder on check-off
+    // (see WorkoutSessionViewModel.toggleSetCompleted) show up as real text instead of the grey hint.
+    var weightText by remember(set.id, set.completed) { mutableStateOf(weightToText(set.weightKg)) }
+    var repsText by remember(set.id, set.completed) { mutableStateOf(repsToText(set.reps)) }
 
     Row(
         modifier = rowModifier
