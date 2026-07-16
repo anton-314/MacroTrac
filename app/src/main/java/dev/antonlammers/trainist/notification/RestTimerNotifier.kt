@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.media.RingtoneManager
 import android.os.Build
 import android.os.SystemClock
@@ -42,31 +43,54 @@ object RestTimerNotifier {
     // immutable once created, so users who ran an earlier build where this channel ended up silent
     // would never get sound again. A fresh id guarantees the HIGH + sound + vibration settings apply.
     private const val CHANNEL_ALERT_ID = "rest_timer_alert"
-    private const val NOTIFICATION_ID = 2002
+    // The ongoing/paused countdown and the "rest over" alert use SEPARATE notification ids on purpose:
+    // Android will not move an already-posted notification to a different channel on update, so posting
+    // the HIGH-channel alert under the ongoing notification's id would leave it stuck on the silent LOW
+    // channel — no sound, no vibration. A distinct id makes the alert a fresh notification that actually
+    // alerts. showExpired cancels the ongoing one so only the alert remains.
+    private const val NOTIFICATION_ID_ONGOING = 2002
+    private const val NOTIFICATION_ID_ALERT = 2003
+
+    // Notification-shade text colours (the custom RemoteViews text can't rely on ?android:textColorPrimary
+    // resolving to the shade's theme across OEMs): near-black in light mode, near-white in dark mode.
+    private const val TEXT_COLOR_LIGHT = 0xFF1A1A1A.toInt()
+    private const val TEXT_COLOR_DARK = 0xFFECECEC.toInt()
 
     /** Running countdown: ongoing, silent, big live chronometer counting down to [endAtMs]. */
     fun showOngoing(context: Context, exerciseName: String, endAtMs: Long) {
         // Chronometer.setBase expects the SystemClock.elapsedRealtime() timebase; endAtMs is wall-clock.
         val chronometerBase = SystemClock.elapsedRealtime() + (endAtMs - System.currentTimeMillis())
+        val textColor = notificationTextColor(context)
         val content = RemoteViews(context.packageName, R.layout.notification_rest_timer).apply {
             setTextViewText(R.id.rest_title, "Satzpause · $exerciseName")
             setViewVisibility(R.id.rest_chronometer, View.VISIBLE)
             setViewVisibility(R.id.rest_time_static, View.GONE)
             setChronometer(R.id.rest_chronometer, chronometerBase, null, true)
             setChronometerCountDown(R.id.rest_chronometer, true)
+            setTextColor(R.id.rest_title, textColor)
+            setTextColor(R.id.rest_chronometer, textColor)
         }
-        post(context, ongoingBuilder(context, content).build())
+        post(context, NOTIFICATION_ID_ONGOING, ongoingBuilder(context, content).build())
     }
 
     /** Paused countdown: ongoing, silent, big static remaining time (no chronometer while frozen). */
     fun showPaused(context: Context, exerciseName: String, remainingSeconds: Int) {
+        val textColor = notificationTextColor(context)
         val content = RemoteViews(context.packageName, R.layout.notification_rest_timer).apply {
             setTextViewText(R.id.rest_title, "Pausiert · $exerciseName")
             setViewVisibility(R.id.rest_chronometer, View.GONE)
             setViewVisibility(R.id.rest_time_static, View.VISIBLE)
             setTextViewText(R.id.rest_time_static, formatMmSs(remainingSeconds))
+            setTextColor(R.id.rest_title, textColor)
+            setTextColor(R.id.rest_time_static, textColor)
         }
-        post(context, ongoingBuilder(context, content).build())
+        post(context, NOTIFICATION_ID_ONGOING, ongoingBuilder(context, content).build())
+    }
+
+    /** Near-black on the light shade, near-white on the dark shade (readable in both). */
+    private fun notificationTextColor(context: Context): Int {
+        val night = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        return if (night == Configuration.UI_MODE_NIGHT_YES) TEXT_COLOR_DARK else TEXT_COLOR_LIGHT
     }
 
     private fun ongoingBuilder(context: Context, content: RemoteViews) =
@@ -81,17 +105,24 @@ object RestTimerNotifier {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(openWorkoutPendingIntent(context))
 
-    /** Rest is over: replaces the ongoing notification with a dismissible, alerting one. */
+    /** Rest is over: dismisses the ongoing countdown and posts a fresh, alerting notification. */
     fun showExpired(context: Context) {
+        // Cancel the silent ongoing notification first; the alert is a NEW notification (own id) so it
+        // lands on the HIGH channel and actually rings/vibrates instead of inheriting the LOW channel.
+        NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID_ONGOING)
         post(
             context,
+            NOTIFICATION_ID_ALERT,
             NotificationCompat.Builder(context, CHANNEL_ALERT_ID)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle("Pause vorbei")
                 .setContentText("Zeit für den nächsten Satz.")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
-                // Pre-O (channels ignore these): request sound + vibration explicitly.
+                // Explicit sound + vibration too: covers pre-O (channels ignore these) and any device
+                // where the channel's own sound/vibration was toggled off — the alert still fires.
+                .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+                .setVibrate(longArrayOf(0, 400, 200, 400))
                 .setDefaults(NotificationCompat.DEFAULT_SOUND or NotificationCompat.DEFAULT_VIBRATE)
                 .setContentIntent(openWorkoutPendingIntent(context))
                 .setAutoCancel(true)
@@ -101,10 +132,13 @@ object RestTimerNotifier {
 
     /** Dismisses whichever rest-timer notification is currently showing (skip/finish/discard). */
     fun cancel(context: Context) {
-        NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
+        NotificationManagerCompat.from(context).apply {
+            cancel(NOTIFICATION_ID_ONGOING)
+            cancel(NOTIFICATION_ID_ALERT)
+        }
     }
 
-    private fun post(context: Context, notification: android.app.Notification) {
+    private fun post(context: Context, id: Int, notification: android.app.Notification) {
         ensureChannels(context)
         // On Android 13+ posting silently no-ops without the runtime permission — guard to avoid noise.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -113,7 +147,7 @@ object RestTimerNotifier {
         ) {
             return
         }
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
+        NotificationManagerCompat.from(context).notify(id, notification)
     }
 
     private fun openWorkoutPendingIntent(context: Context): PendingIntent {
