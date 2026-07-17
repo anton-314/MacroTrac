@@ -120,4 +120,37 @@
     <string name="overview_clean_percent">%1$d %% CLEAN</string>
     <string name="overview_weight_dialog_title">Log weight</string>
     <string name="overview_weight_today_label">Weight today</string>
+
+    <!-- Shared workout-module strings (ui/workout/ExercisePicker.kt, reused across screens) -->
+    <string name="workout_add_exercise_button">Add exercise</string>
+    <string name="workout_add_set_button">Add set</string>
+    <string name="workout_exercise_search_placeholder">Search exercises</string>
+    <string name="workout_exercise_picker_empty">No exercises found.</string>
+
+    <!-- WorkoutSessionScreen (ui/workout/WorkoutSessionScreen.kt) -->
+    <string name="workout_session_template_update_title">Update template?</string>
+    <string name="workout_session_template_update_text">You changed this session compared to the template »%1$s«. Should the changes (e.g. more sets or changed set types) be carried over for next time? Skipped exercises are kept as they are.</string>
+    <string name="workout_session_template_update_confirm">Update</string>
+    <string name="workout_session_template_update_dismiss">Keep as is</string>
+    <string name="workout_session_discard_title">Discard workout?</string>
+    <string name="workout_session_discard_text">The running session will be deleted and not saved.</string>
+    <string name="workout_session_discard_confirm">Discard</string>
+    <string name="workout_session_title">Workout</string>
+    <string name="workout_session_finish_button">Done</string>
+    <string name="workout_session_weight_caption_added">ADDED</string>
+    <string name="workout_session_weight_caption_kg">KG</string>
+    <string name="workout_session_remove_exercise_content_description">Remove exercise</string>
+    <string name="workout_session_set_number_caption">SET</string>
+    <string name="workout_session_reps_caption">REPS</string>
+    <string name="workout_session_volume_label">VOLUME</string>
+    <string name="workout_session_drag_handle_content_description">Drag to reorder</string>
+    <string name="workout_session_set_completed_content_description">Set done</string>
+    <string name="workout_session_set_open_content_description">Set open</string>
+    <string name="workout_session_delete_set_content_description">Delete set</string>
+    <string name="workout_session_empty_hint">No exercises yet — add one using the button below.</string>
+    <string name="workout_session_rest_paused_label">REST PAUSED</string>
+    <string name="workout_session_rest_label">REST</string>
+    <string name="workout_session_rest_resume_content_description">Resume</string>
+    <string name="workout_session_rest_pause_content_description">Pause</string>
+    <string name="workout_session_rest_skip_content_description">Skip</string>
 </resources>

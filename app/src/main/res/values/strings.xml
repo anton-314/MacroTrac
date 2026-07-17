@@ -120,4 +120,37 @@
     <string name="overview_clean_percent">%1$d %% CLEAN</string>
     <string name="overview_weight_dialog_title">Gewicht eintragen</string>
     <string name="overview_weight_today_label">Gewicht heute</string>
+
+    <!-- Shared workout-module strings (ui/workout/ExercisePicker.kt, reused across screens) -->
+    <string name="workout_add_exercise_button">Übung hinzufügen</string>
+    <string name="workout_add_set_button">Satz hinzufügen</string>
+    <string name="workout_exercise_search_placeholder">Übung suchen</string>
+    <string name="workout_exercise_picker_empty">Keine Übungen gefunden.</string>
+
+    <!-- WorkoutSessionScreen (ui/workout/WorkoutSessionScreen.kt) -->
+    <string name="workout_session_template_update_title">Vorlage aktualisieren?</string>
+    <string name="workout_session_template_update_text">Du hast diese Einheit gegenüber der Vorlage »%1$s« verändert. Sollen die Änderungen (z. B. mehr Sätze oder geänderte Satztypen) für das nächste Mal übernommen werden? Ausgelassene Übungen bleiben erhalten.</string>
+    <string name="workout_session_template_update_confirm">Aktualisieren</string>
+    <string name="workout_session_template_update_dismiss">Beibehalten</string>
+    <string name="workout_session_discard_title">Workout verwerfen?</string>
+    <string name="workout_session_discard_text">Die laufende Einheit wird gelöscht und nicht gespeichert.</string>
+    <string name="workout_session_discard_confirm">Verwerfen</string>
+    <string name="workout_session_title">Workout</string>
+    <string name="workout_session_finish_button">Fertig</string>
+    <string name="workout_session_weight_caption_added">ZUSATZ</string>
+    <string name="workout_session_weight_caption_kg">KG</string>
+    <string name="workout_session_remove_exercise_content_description">Übung entfernen</string>
+    <string name="workout_session_set_number_caption">SATZ</string>
+    <string name="workout_session_reps_caption">WDH</string>
+    <string name="workout_session_volume_label">VOLUMEN</string>
+    <string name="workout_session_drag_handle_content_description">Ziehen zum Verschieben</string>
+    <string name="workout_session_set_completed_content_description">Satz erledigt</string>
+    <string name="workout_session_set_open_content_description">Satz offen</string>
+    <string name="workout_session_delete_set_content_description">Satz löschen</string>
+    <string name="workout_session_empty_hint">Noch keine Übungen — füge welche über den Button unten hinzu.</string>
+    <string name="workout_session_rest_paused_label">PAUSE PAUSIERT</string>
+    <string name="workout_session_rest_label">PAUSE</string>
+    <string name="workout_session_rest_resume_content_description">Fortsetzen</string>
+    <string name="workout_session_rest_pause_content_description">Pausieren</string>
+    <string name="workout_session_rest_skip_content_description">Überspringen</string>
 </resources>
