@@ -105,11 +105,10 @@ import dev.antonlammers.trainist.ui.navigation.Screen
 import dev.antonlammers.trainist.ui.theme.CarbsColor
 import dev.antonlammers.trainist.ui.theme.FatColor
 import dev.antonlammers.trainist.ui.theme.ProteinColor
+import dev.antonlammers.trainist.ui.util.localizedDateFormatter
 import dev.antonlammers.trainist.util.normalizeDecimal
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrance/replay motion. A single master "clock" (seconds) is restarted from 0
@@ -158,7 +157,7 @@ fun OverviewScreen(
                             Icon(Icons.Rounded.KeyboardArrowLeft, contentDescription = stringResource(R.string.overview_previous_day_content_description))
                         }
                         Text(
-                            state.date.format(DateTimeFormatter.ofPattern("EEE, d. MMM", Locale("de"))),
+                            state.date.format(localizedDateFormatter("EEE, d. MMM")),
                             modifier = Modifier.weight(1f),
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.titleLarge,
@@ -170,7 +169,7 @@ fun OverviewScreen(
                 },
                 actions = {
                     if (state.date != LocalDate.now()) {
-                        TextButton(onClick = viewModel::goToToday) { Text(stringResource(R.string.overview_today_button)) }
+                        TextButton(onClick = viewModel::goToToday) { Text(stringResource(R.string.common_today)) }
                     }
                 },
             )

@@ -50,7 +50,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlin.math.abs
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,6 +61,7 @@ import dev.antonlammers.trainist.ui.theme.CalorieColor
 import dev.antonlammers.trainist.ui.theme.ProteinColor
 import dev.antonlammers.trainist.ui.theme.TagHealthyColor
 import dev.antonlammers.trainist.ui.util.currentAppLocale
+import dev.antonlammers.trainist.ui.util.localizedDateFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -535,9 +535,9 @@ private fun TimeRange.label(): String = stringResource(
 )
 
 private fun weightTickFormatter(range: TimeRange): DateTimeFormatter = when (range) {
-    TimeRange.WEEK -> DateTimeFormatter.ofPattern("EE", Locale("de"))
-    TimeRange.MONTH -> DateTimeFormatter.ofPattern("d.M.", Locale("de"))
-    TimeRange.YEAR -> DateTimeFormatter.ofPattern("MMM", Locale("de"))
+    TimeRange.WEEK -> localizedDateFormatter("EE")
+    TimeRange.MONTH -> localizedDateFormatter("d.M.")
+    TimeRange.YEAR -> localizedDateFormatter("MMM")
 }
 
 /** Evenly spaced tick dates across the range; count tuned per range to avoid label overlap. */

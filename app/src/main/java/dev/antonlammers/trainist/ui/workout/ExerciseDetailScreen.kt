@@ -45,9 +45,8 @@ import dev.antonlammers.trainist.domain.model.ExerciseType
 import dev.antonlammers.trainist.domain.model.SetType
 import dev.antonlammers.trainist.ui.stats.StrengthChart
 import dev.antonlammers.trainist.ui.stats.evenlySpacedDates
+import dev.antonlammers.trainist.ui.util.localizedDateFormatter
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * Per-exercise detail (spec §3.8): the exercise's catalog metadata, its current max-weight PR, an
@@ -100,7 +99,7 @@ fun ExerciseDetailScreen(
                             )
                         } else {
                             val spanDays = strength.rangeEnd.toEpochDay() - strength.rangeStart.toEpochDay()
-                            val fmt = if (spanDays >= 180) MONTH_YEAR_FMT else DAY_MONTH_FMT
+                            val fmt = if (spanDays >= 180) monthYearFmt() else dayMonthFmt()
                             StrengthChart(
                                 data = strength,
                                 tickDates = evenlySpacedDates(strength.rangeStart, strength.rangeEnd, 4),
@@ -205,7 +204,7 @@ private fun SessionLogCard(session: ExerciseSessionLog, type: ExerciseType) {
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(session.date.format(SESSION_DATE_FMT), style = MaterialTheme.typography.titleMedium)
+        Text(session.date.format(sessionDateFmt()), style = MaterialTheme.typography.titleMedium)
         session.sets.forEach { set -> SetLogRow(set, type) }
     }
 }
@@ -260,6 +259,6 @@ private fun DetailCard(title: String, content: @Composable () -> Unit) {
 private val Exercise.hasMetadata: Boolean
     get() = primaryMuscles.isNotEmpty() || equipment != null || mechanic != null || category != null || instructions.isNotEmpty()
 
-private val SESSION_DATE_FMT = DateTimeFormatter.ofPattern("d. MMMM yyyy", Locale("de"))
-private val DAY_MONTH_FMT = DateTimeFormatter.ofPattern("d.M.", Locale("de"))
-private val MONTH_YEAR_FMT = DateTimeFormatter.ofPattern("MMM yy", Locale("de"))
+private fun sessionDateFmt() = localizedDateFormatter("d. MMMM yyyy")
+private fun dayMonthFmt() = localizedDateFormatter("d.M.")
+private fun monthYearFmt() = localizedDateFormatter("MMM yy")

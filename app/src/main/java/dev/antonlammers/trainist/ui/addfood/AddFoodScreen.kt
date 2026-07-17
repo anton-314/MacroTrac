@@ -82,10 +82,9 @@ import dev.antonlammers.trainist.ui.components.TagDot
 import dev.antonlammers.trainist.ui.components.TagSelector
 import dev.antonlammers.trainist.ui.navigation.Screen
 import dev.antonlammers.trainist.ui.util.currentAppLocale
+import dev.antonlammers.trainist.ui.util.localizedDateFormatter
 import dev.antonlammers.trainist.util.normalizeDecimal
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -812,12 +811,13 @@ private fun AmountSheet(
     }
 }
 
+@Composable
 private fun LocalDate.formatRelative(): String {
     val today = LocalDate.now()
     return when (this) {
-        today -> "Heute"
-        today.minusDays(1) -> "Gestern"
-        else -> format(DateTimeFormatter.ofPattern("EEE, d. MMM", Locale("de")))
+        today -> stringResource(R.string.common_today)
+        today.minusDays(1) -> stringResource(R.string.common_yesterday)
+        else -> format(localizedDateFormatter("EEE, d. MMM"))
     }
 }
 

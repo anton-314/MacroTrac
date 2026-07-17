@@ -10,6 +10,12 @@
     <string name="common_edit">Bearbeiten</string>
     <string name="common_undo">Rückgängig</string>
     <string name="common_cancel">Abbrechen</string>
+    <string name="common_today">Heute</string>
+    <string name="common_yesterday">Gestern</string>
+    <plurals name="common_days_ago">
+        <item quantity="one">Vor %d Tag</item>
+        <item quantity="other">Vor %d Tagen</item>
+    </plurals>
 
     <!-- Meal categories (domain/model/MealCategory) -->
     <string name="meal_category_breakfast">Frühstück</string>
@@ -104,7 +110,6 @@
     <!-- OverviewScreen (ui/overview/OverviewScreen.kt) -->
     <string name="overview_previous_day_content_description">Vorheriger Tag</string>
     <string name="overview_next_day_content_description">Nächster Tag</string>
-    <string name="overview_today_button">Heute</string>
     <string name="overview_empty_state">Noch keine Einträge heute</string>
     <string name="overview_copy_meal_button">%1$s von Gestern kopieren</string>
     <string name="overview_macro_protein">Protein</string>
@@ -166,6 +171,7 @@
     <string name="templates_empty_title">Noch keine Vorlagen</string>
     <string name="templates_empty_body">Lege über das Plus-Symbol eine Workout-Vorlage an — oder starte direkt ein freies Workout.</string>
     <string name="templates_deleted_message">Vorlage gelöscht</string>
+    <string name="templates_never_trained">Noch nie trainiert</string>
 
     <!-- Shared goal-editor fields (ui/goals/GoalFields.kt content, used by SettingsScreen + OnboardingScreen) -->
     <string name="goals_section_header">Tagesziele</string>

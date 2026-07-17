@@ -14,6 +14,7 @@ import dev.antonlammers.trainist.domain.repository.GoalRepository
 import dev.antonlammers.trainist.domain.repository.SettingsRepository
 import dev.antonlammers.trainist.domain.repository.WeightRepository
 import dev.antonlammers.trainist.domain.repository.WorkoutSessionRepository
+import dev.antonlammers.trainist.ui.util.localizedDateFormatter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,8 +25,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 
 // Display labels live in the UI layer (TimeRange.label() in StatsScreen.kt) since this ViewModel
@@ -172,16 +171,16 @@ class StatsViewModel @Inject constructor(
         return when (range) {
             TimeRange.WEEK, TimeRange.MONTH -> {
                 val fmt = if (range == TimeRange.WEEK)
-                    DateTimeFormatter.ofPattern("EE", Locale("de"))
+                    localizedDateFormatter("EE")
                 else
-                    DateTimeFormatter.ofPattern("d", Locale("de"))
+                    localizedDateFormatter("d")
                 val byDate = entries.groupBy { it.date }
                 generateSequence(from) { d -> if (d < to) d.plusDays(1) else null }
                     .map { date -> ChartPoint(date.format(fmt), valueOf(byDate[date].orEmpty())) }
                     .toList()
             }
             TimeRange.YEAR -> {
-                val fmt = DateTimeFormatter.ofPattern("MMM", Locale("de"))
+                val fmt = localizedDateFormatter("MMM")
                 val byMonth = entries.groupBy { YearMonth.from(it.date) }
                 val fromMonth = YearMonth.from(from)
                 val toMonth = YearMonth.from(to)

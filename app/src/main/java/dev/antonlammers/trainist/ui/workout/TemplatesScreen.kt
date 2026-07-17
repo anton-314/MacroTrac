@@ -47,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -314,13 +315,14 @@ private fun EmptyTemplates() {
     }
 }
 
-/** "Heute" / "Gestern" / "Vor N Tagen" / "Noch nie trainiert" — orientation, not a precise date. */
+/** "Today" / "Yesterday" / "N days ago" / "Never trained" — orientation, not a precise date. */
+@Composable
 private fun LocalDate?.lastUsedText(): String {
-    if (this == null) return "Noch nie trainiert"
+    if (this == null) return stringResource(R.string.templates_never_trained)
     val days = ChronoUnit.DAYS.between(this, LocalDate.now())
     return when {
-        days <= 0L -> "Heute"
-        days == 1L -> "Gestern"
-        else -> "Vor $days Tagen"
+        days <= 0L -> stringResource(R.string.common_today)
+        days == 1L -> stringResource(R.string.common_yesterday)
+        else -> pluralStringResource(R.plurals.common_days_ago, days.toInt(), days.toInt())
     }
 }

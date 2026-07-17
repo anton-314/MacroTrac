@@ -10,6 +10,12 @@
     <string name="common_edit">Edit</string>
     <string name="common_undo">Undo</string>
     <string name="common_cancel">Cancel</string>
+    <string name="common_today">Today</string>
+    <string name="common_yesterday">Yesterday</string>
+    <plurals name="common_days_ago">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
 
     <!-- Meal categories (domain/model/MealCategory) -->
     <string name="meal_category_breakfast">Breakfast</string>
@@ -104,7 +110,6 @@
     <!-- OverviewScreen (ui/overview/OverviewScreen.kt) -->
     <string name="overview_previous_day_content_description">Previous day</string>
     <string name="overview_next_day_content_description">Next day</string>
-    <string name="overview_today_button">Today</string>
     <string name="overview_empty_state">No entries yet today</string>
     <string name="overview_copy_meal_button">Copy %1$s from yesterday</string>
     <string name="overview_macro_protein">Protein</string>
@@ -166,6 +171,7 @@
     <string name="templates_empty_title">No templates yet</string>
     <string name="templates_empty_body">Create a workout template using the plus icon — or just start a free workout.</string>
     <string name="templates_deleted_message">Template deleted</string>
+    <string name="templates_never_trained">Never trained</string>
 
     <!-- Shared goal-editor fields (ui/goals/GoalFields.kt content, used by SettingsScreen + OnboardingScreen) -->
     <string name="goals_section_header">Daily goals</string>
