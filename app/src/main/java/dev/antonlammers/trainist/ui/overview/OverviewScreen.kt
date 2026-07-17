@@ -85,12 +85,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import dev.antonlammers.trainist.R
 import dev.antonlammers.trainist.domain.model.FoodEntry
 import dev.antonlammers.trainist.domain.model.FoodTag
 import dev.antonlammers.trainist.domain.model.MealCategory
@@ -139,6 +141,11 @@ fun OverviewScreen(
     // already captured via `state.date`. Both key the animation clock in MacroSummaryCard.
     var replayTrigger by remember { mutableIntStateOf(0) }
 
+    // Resolved here (not inside the snackbar-launching lambda below, which runs in a coroutine
+    // scope rather than a @Composable context, so stringResource() isn't callable there).
+    val entryDeletedMessage = stringResource(R.string.addfood_entry_deleted)
+    val undoLabel = stringResource(R.string.common_undo)
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -148,7 +155,7 @@ fun OverviewScreen(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         IconButton(onClick = viewModel::previousDay) {
-                            Icon(Icons.Rounded.KeyboardArrowLeft, contentDescription = "Vorheriger Tag")
+                            Icon(Icons.Rounded.KeyboardArrowLeft, contentDescription = stringResource(R.string.overview_previous_day_content_description))
                         }
                         Text(
                             state.date.format(DateTimeFormatter.ofPattern("EEE, d. MMM", Locale("de"))),
@@ -157,13 +164,13 @@ fun OverviewScreen(
                             style = MaterialTheme.typography.titleLarge,
                         )
                         IconButton(onClick = viewModel::nextDay) {
-                            Icon(Icons.Rounded.KeyboardArrowRight, contentDescription = "Nächster Tag")
+                            Icon(Icons.Rounded.KeyboardArrowRight, contentDescription = stringResource(R.string.overview_next_day_content_description))
                         }
                     }
                 },
                 actions = {
                     if (state.date != LocalDate.now()) {
-                        TextButton(onClick = viewModel::goToToday) { Text("Heute") }
+                        TextButton(onClick = viewModel::goToToday) { Text(stringResource(R.string.overview_today_button)) }
                     }
                 },
             )
@@ -176,7 +183,7 @@ fun OverviewScreen(
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp, 0.dp, 0.dp),
             ) {
-                Icon(Icons.Rounded.Add, contentDescription = "Mahlzeit hinzufügen")
+                Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.addfood_title))
             }
         },
         snackbarHost = { SnackbarHost(snackbar) },
@@ -205,7 +212,7 @@ fun OverviewScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            "Noch keine Einträge heute",
+                            stringResource(R.string.overview_empty_state),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -218,7 +225,7 @@ fun OverviewScreen(
                         if (category in state.copyableMeals) {
                             item(key = "copy_${category.name}") {
                                 CopyMealButton(
-                                    label = "${category.displayName()} von Gestern kopieren",
+                                    label = stringResource(R.string.overview_copy_meal_button, category.displayName()),
                                     onClick = { viewModel.copyMealFromPreviousDay(category) },
                                 )
                             }
@@ -244,8 +251,8 @@ fun OverviewScreen(
                                         viewModel.deletePending(entry)
                                         coroutineScope.launch {
                                             val result = snackbar.showSnackbar(
-                                                message = "Eintrag gelöscht",
-                                                actionLabel = "Rückgängig",
+                                                message = entryDeletedMessage,
+                                                actionLabel = undoLabel,
                                                 duration = SnackbarDuration.Short,
                                             )
                                             when (result) {
@@ -307,12 +314,12 @@ fun OverviewScreen(
                                     when (dismissState.targetValue) {
                                         SwipeToDismissBoxValue.EndToStart -> Icon(
                                             Icons.Rounded.Delete,
-                                            contentDescription = "Löschen",
+                                            contentDescription = stringResource(R.string.common_delete),
                                             tint = MaterialTheme.colorScheme.onErrorContainer,
                                         )
                                         SwipeToDismissBoxValue.StartToEnd -> Icon(
                                             Icons.Rounded.Edit,
-                                            contentDescription = "Bearbeiten",
+                                            contentDescription = stringResource(R.string.common_edit),
                                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                         )
                                         else -> {}
@@ -372,7 +379,7 @@ private fun EditFoodDialog(
 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    "MENGE",
+                    stringResource(R.string.addfood_amount_label),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -388,7 +395,7 @@ private fun EditFoodDialog(
 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    "MAHLZEIT",
+                    stringResource(R.string.addfood_meal_label),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -420,10 +427,13 @@ private fun EditFoodDialog(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        "${(entry.kcal * factor).toInt()} kcal · " +
-                            "${(entry.proteinG * factor).toInt()}g P · " +
-                            "${(entry.carbsG * factor).toInt()}g K · " +
-                            "${(entry.fatG * factor).toInt()}g F",
+                        stringResource(
+                            R.string.addfood_food_detail_total,
+                            (entry.kcal * factor).toInt(),
+                            (entry.proteinG * factor).toInt(),
+                            (entry.carbsG * factor).toInt(),
+                            (entry.fatG * factor).toInt(),
+                        ),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -454,7 +464,7 @@ private fun EditFoodDialog(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
             ) {
-                Text("Speichern", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.common_save), style = MaterialTheme.typography.labelLarge)
             }
         }
     }
@@ -505,9 +515,9 @@ private fun MacroSummaryCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                MacroBar("Protein", state.totalProtein, state.goal.proteinG, "g", ProteinColor, time, 0.4f, 1.3f)
-                MacroBar("Kohlenhydrate", state.totalCarbs, state.goal.carbsG, "g", CarbsColor, time, 0.55f, 1.45f)
-                MacroBar("Fett", state.totalFat, state.goal.fatG, "g", FatColor, time, 0.7f, 1.6f)
+                MacroBar(stringResource(R.string.overview_macro_protein), state.totalProtein, state.goal.proteinG, "g", ProteinColor, time, 0.4f, 1.3f)
+                MacroBar(stringResource(R.string.overview_macro_carbs), state.totalCarbs, state.goal.carbsG, "g", CarbsColor, time, 0.55f, 1.45f)
+                MacroBar(stringResource(R.string.overview_macro_fat), state.totalFat, state.goal.fatG, "g", FatColor, time, 0.7f, 1.6f)
             }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -516,9 +526,9 @@ private fun MacroSummaryCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                SecondaryMacro("Zucker", state.totalSugar, "g")
-                SecondaryMacro("Ballaststoffe", state.totalFiber, "g")
-                SecondaryMacro("Salz", state.totalSalt, "g")
+                SecondaryMacro(stringResource(R.string.overview_sugar_label), state.totalSugar, "g")
+                SecondaryMacro(stringResource(R.string.overview_fiber_label), state.totalFiber, "g")
+                SecondaryMacro(stringResource(R.string.overview_salt_label), state.totalSalt, "g")
             }
         }
     }
@@ -592,16 +602,16 @@ private fun CalorieRing(state: OverviewUiState, time: Float) {
                 style = MaterialTheme.typography.displayLarge,
             )
             Text(
-                "KCAL",
+                stringResource(R.string.overview_kcal_label),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.outline,
             )
             val subAlpha = windowProgress(time, 2.1f, 2.6f, EaseOutCubic)
             val remaining = goal - current
             val (caption, captionColor) = when {
-                remaining > 0 -> "noch ${remaining.toInt()}" to MaterialTheme.colorScheme.onSurfaceVariant
-                remaining < 0 -> "+${(-remaining).toInt()} zuviel" to MaterialTheme.colorScheme.error
-                else -> "Ziel erreicht" to MaterialTheme.colorScheme.primary
+                remaining > 0 -> stringResource(R.string.overview_kcal_remaining, remaining.toInt()) to MaterialTheme.colorScheme.onSurfaceVariant
+                remaining < 0 -> stringResource(R.string.overview_kcal_over, (-remaining).toInt()) to MaterialTheme.colorScheme.error
+                else -> stringResource(R.string.overview_kcal_goal_reached) to MaterialTheme.colorScheme.primary
             }
             Text(
                 caption,
@@ -630,7 +640,7 @@ private fun CleanEatingSummary(cleanPercent: Int?, time: Float) {
     ) {
         if (cleanPercent != null) {
             Text(
-                "$cleanPercent % CLEAN",
+                stringResource(R.string.overview_clean_percent, cleanPercent),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -732,7 +742,7 @@ private fun WeightCard(weight: WeightEntry?, onSave: (Double) -> Unit) {
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text("Gewicht eintragen") },
+            title = { Text(stringResource(R.string.overview_weight_dialog_title)) },
             text = {
                 NumericTextField(
                     value = input,
@@ -745,10 +755,10 @@ private fun WeightCard(weight: WeightEntry?, onSave: (Double) -> Unit) {
                 TextButton(onClick = {
                     input.normalizeDecimal().toDoubleOrNull()?.let { onSave(it) }
                     showDialog = false
-                }) { Text("Speichern") }
+                }) { Text(stringResource(R.string.common_save)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDialog = false }) { Text("Abbrechen") }
+                TextButton(onClick = { showDialog = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -774,7 +784,7 @@ private fun WeightCard(weight: WeightEntry?, onSave: (Double) -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Gewicht heute", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.overview_weight_today_label), style = MaterialTheme.typography.titleSmall)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -785,7 +795,7 @@ private fun WeightCard(weight: WeightEntry?, onSave: (Double) -> Unit) {
                 )
                 Icon(
                     Icons.Rounded.Edit,
-                    contentDescription = "Bearbeiten",
+                    contentDescription = stringResource(R.string.common_edit),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.outline,
                 )
@@ -794,12 +804,15 @@ private fun WeightCard(weight: WeightEntry?, onSave: (Double) -> Unit) {
     }
 }
 
-private fun MealCategory.displayName() = when (this) {
-    MealCategory.BREAKFAST -> "Frühstück"
-    MealCategory.LUNCH -> "Mittagessen"
-    MealCategory.DINNER -> "Abendessen"
-    MealCategory.SNACK -> "Snack"
-}
+@Composable
+private fun MealCategory.displayName() = stringResource(
+    when (this) {
+        MealCategory.BREAKFAST -> R.string.meal_category_breakfast
+        MealCategory.LUNCH -> R.string.meal_category_lunch
+        MealCategory.DINNER -> R.string.meal_category_dinner
+        MealCategory.SNACK -> R.string.meal_category_snack
+    },
+)
 
 @Composable
 private fun MealSectionHeader(name: String, kcal: Int) {
@@ -870,7 +883,13 @@ private fun FoodEntryRow(entry: FoodEntry) {
             )
         }
         Text(
-            "${entry.kcal.toInt()} kcal · ${entry.proteinG.toInt()}g P · ${entry.carbsG.toInt()}g K · ${entry.fatG.toInt()}g F",
+            stringResource(
+                R.string.addfood_food_detail_total,
+                entry.kcal.toInt(),
+                entry.proteinG.toInt(),
+                entry.carbsG.toInt(),
+                entry.fatG.toInt(),
+            ),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 13.dp),

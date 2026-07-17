@@ -100,4 +100,24 @@
     <string name="barcode_scanner_permission_allow">Allow</string>
     <string name="barcode_scanner_close_content_description">Close</string>
     <string name="barcode_scanner_overlay_caption">Hold barcode inside the frame</string>
+
+    <!-- OverviewScreen (ui/overview/OverviewScreen.kt) -->
+    <string name="overview_previous_day_content_description">Previous day</string>
+    <string name="overview_next_day_content_description">Next day</string>
+    <string name="overview_today_button">Today</string>
+    <string name="overview_empty_state">No entries yet today</string>
+    <string name="overview_copy_meal_button">Copy %1$s from yesterday</string>
+    <string name="overview_macro_protein">Protein</string>
+    <string name="overview_macro_carbs">Carbs</string>
+    <string name="overview_macro_fat">Fat</string>
+    <string name="overview_sugar_label">Sugar</string>
+    <string name="overview_fiber_label">Fiber</string>
+    <string name="overview_salt_label">Salt</string>
+    <string name="overview_kcal_label">KCAL</string>
+    <string name="overview_kcal_remaining">%1$d left</string>
+    <string name="overview_kcal_over">+%1$d over</string>
+    <string name="overview_kcal_goal_reached">Goal reached</string>
+    <string name="overview_clean_percent">%1$d %% CLEAN</string>
+    <string name="overview_weight_dialog_title">Log weight</string>
+    <string name="overview_weight_today_label">Weight today</string>
 </resources>
