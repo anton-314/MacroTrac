@@ -264,4 +264,17 @@
     <string name="stats_weight_current">Aktuell</string>
     <string name="stats_weight_change">Veränderung</string>
     <string name="stats_weight_target">Ziel</string>
+
+    <!-- OnboardingScreen (ui/onboarding/OnboardingScreen.kt) -->
+    <string name="onboarding_welcome_prefix">Willkommen bei</string>
+    <string name="onboarding_welcome_question">Wie möchtest du starten?</string>
+    <string name="onboarding_quickstart_title">Schnellstart</string>
+    <string name="onboarding_quickstart_subtitle">Ein vorhandenes Backup importieren und direkt loslegen.</string>
+    <string name="onboarding_start_empty_title">Einfach loslegen</string>
+    <string name="onboarding_start_empty_subtitle">Mit einer leeren App beginnen — Ziele kannst du jederzeit später setzen.</string>
+    <string name="onboarding_setup_goals_title">Ziele einrichten</string>
+    <string name="onboarding_setup_goals_subtitle">Ein kurzer Guide: Zielgewicht und deine Tagesziele festlegen.</string>
+    <string name="onboarding_guide_skip_button">Überspringen</string>
+    <string name="onboarding_guide_hint">Diese Werte kannst du jederzeit in den Einstellungen anpassen.</string>
+    <string name="onboarding_guide_save_button">Speichern &amp; loslegen</string>
 </resources>

@@ -161,7 +161,7 @@ private fun WelcomeStep(
             )
             Spacer(Modifier.height(20.dp))
             Text(
-                text = "Willkommen bei",
+                text = stringResource(R.string.onboarding_welcome_prefix),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -172,7 +172,7 @@ private fun WelcomeStep(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "Wie möchtest du starten?",
+                text = stringResource(R.string.onboarding_welcome_question),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -187,24 +187,24 @@ private fun WelcomeStep(
 
             OptionCard(
                 icon = Icons.Rounded.FileUpload,
-                title = "Schnellstart",
-                subtitle = "Ein vorhandenes Backup importieren und direkt loslegen.",
+                title = stringResource(R.string.onboarding_quickstart_title),
+                subtitle = stringResource(R.string.onboarding_quickstart_subtitle),
                 enabled = !dataState.isLoading,
                 onClick = { importLauncher.launch(arrayOf("application/zip", "text/csv", "*/*")) },
             )
             Spacer(Modifier.height(12.dp))
             OptionCard(
                 icon = Icons.Rounded.RocketLaunch,
-                title = "Einfach loslegen",
-                subtitle = "Mit einer leeren App beginnen — Ziele kannst du jederzeit später setzen.",
+                title = stringResource(R.string.onboarding_start_empty_title),
+                subtitle = stringResource(R.string.onboarding_start_empty_subtitle),
                 enabled = !dataState.isLoading,
                 onClick = onStartEmpty,
             )
             Spacer(Modifier.height(12.dp))
             OptionCard(
                 icon = Icons.Rounded.Flag,
-                title = "Ziele einrichten",
-                subtitle = "Ein kurzer Guide: Zielgewicht und deine Tagesziele festlegen.",
+                title = stringResource(R.string.onboarding_setup_goals_title),
+                subtitle = stringResource(R.string.onboarding_setup_goals_subtitle),
                 enabled = !dataState.isLoading,
                 onClick = onOpenGuide,
             )
@@ -325,14 +325,14 @@ private fun GuideStep(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ziele einrichten") },
+                title = { Text(stringResource(R.string.onboarding_setup_goals_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Rounded.ChevronLeft, contentDescription = "Zurück")
+                        Icon(Icons.Rounded.ChevronLeft, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
-                    TextButton(onClick = onDone) { Text("Überspringen") }
+                    TextButton(onClick = onDone) { Text(stringResource(R.string.onboarding_guide_skip_button)) }
                 },
             )
         },
@@ -346,14 +346,14 @@ private fun GuideStep(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                "Diese Werte kannst du jederzeit in den Einstellungen anpassen.",
+                stringResource(R.string.onboarding_guide_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             // Body weight — drives the protein/fat recommendations (not a goal itself).
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                FieldLabel("Körpergewicht (kg)")
+                FieldLabel(stringResource(R.string.goals_body_weight_label))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -372,7 +372,7 @@ private fun GuideStep(
                             protein = MacroCalculator.recommendedProteinG(bodyWeightKg).toInt().toString()
                             fat = MacroCalculator.recommendedFatG(bodyWeightKg).toInt().toString()
                         }) {
-                            Text("Übernehmen")
+                            Text(stringResource(R.string.goals_body_weight_apply_button))
                         }
                     }
                 }
@@ -381,31 +381,31 @@ private fun GuideStep(
                 val recProtein = MacroCalculator.recommendedProteinG(bodyWeightKg).toInt()
                 val recFat = MacroCalculator.recommendedFatG(bodyWeightKg).toInt()
                 Text(
-                    "Empfehlung: ${recProtein}g Protein · ${recFat}g Fett · Rest mit Kohlenhydraten auffüllen",
+                    stringResource(R.string.goals_recommendation, recProtein, recFat),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             HorizontalDivider()
-            Text("Makros & Kalorien", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.goals_macros_calories_header), style = MaterialTheme.typography.titleMedium)
 
             GoalField(
-                label = "Protein (g)",
+                label = stringResource(R.string.goals_protein_label),
                 value = protein,
                 onValueChange = { protein = it },
                 accentColor = ProteinColor,
-                supportingText = "Empfehlung: 2,2g pro kg Körpergewicht",
+                supportingText = stringResource(R.string.goals_protein_supporting_text),
             )
             GoalField(
-                label = "Fett (g)",
+                label = stringResource(R.string.goals_fat_label),
                 value = fat,
                 onValueChange = { fat = it },
                 accentColor = FatColor,
-                supportingText = "Empfehlung: 1g pro kg Körpergewicht",
+                supportingText = stringResource(R.string.goals_fat_supporting_text),
             )
             GoalField(
-                label = "Kohlenhydrate (g)",
+                label = stringResource(R.string.goals_carbs_label),
                 value = carbs,
                 onValueChange = { carbs = it },
                 accentColor = CarbsColor,
@@ -415,11 +415,11 @@ private fun GuideStep(
                     onClick = { carbs = calculatedCarbs.toInt().toString() },
                     modifier = Modifier.align(Alignment.End),
                 ) {
-                    Text("Aus kcal & Makros berechnen (→ ${calculatedCarbs.toInt()}g)")
+                    Text(stringResource(R.string.goals_carbs_calc_button, calculatedCarbs.toInt()))
                 }
             }
             GoalField(
-                label = "Kalorien (kcal)",
+                label = stringResource(R.string.goals_kcal_label),
                 value = kcal,
                 onValueChange = { kcal = it },
                 accentColor = CalorieColor,
@@ -429,7 +429,7 @@ private fun GuideStep(
                     onClick = { kcal = calculatedKcal.toInt().toString() },
                     modifier = Modifier.align(Alignment.End),
                 ) {
-                    Text("Aus Makros berechnen (→ ${calculatedKcal.toInt()} kcal)")
+                    Text(stringResource(R.string.goals_kcal_calc_button, calculatedKcal.toInt()))
                 }
             }
 
@@ -454,14 +454,13 @@ private fun GuideStep(
                             )
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(
-                                    "Kalorien stimmen nicht mit Makros überein",
+                                    stringResource(R.string.goals_warning_title),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.error,
                                 )
                                 val sign = if (kcalDelta > 0) "+" else ""
                                 Text(
-                                    "Makros ergeben ${calculatedKcal.toInt()} kcal " +
-                                        "(${sign}${kcalDelta.toInt()} kcal Unterschied)",
+                                    stringResource(R.string.goals_warning_detail, calculatedKcal.toInt(), sign, kcalDelta.toInt()),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -473,12 +472,12 @@ private fun GuideStep(
 
             HorizontalDivider()
             GoalField(
-                label = "Zielgewicht (kg)",
+                label = stringResource(R.string.goals_target_weight_label),
                 value = targetWeight,
                 onValueChange = { targetWeight = it },
                 decimal = true,
                 suffix = "kg",
-                supportingText = "Optional — wird in der Gewichtsstatistik als Linie angezeigt",
+                supportingText = stringResource(R.string.goals_target_weight_supporting_text),
             )
 
             Spacer(Modifier.height(4.dp))
@@ -487,7 +486,7 @@ private fun GuideStep(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
             ) {
-                Text("Speichern & loslegen", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.onboarding_guide_save_button), style = MaterialTheme.typography.labelLarge)
             }
             Spacer(Modifier.height(16.dp))
         }
