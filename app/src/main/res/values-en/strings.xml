@@ -277,4 +277,14 @@
     <string name="onboarding_guide_skip_button">Skip</string>
     <string name="onboarding_guide_hint">You can adjust these values anytime in settings.</string>
     <string name="onboarding_guide_save_button">Save &amp; get started</string>
+
+    <!-- WorkoutHistoryScreen (ui/workout/WorkoutHistoryScreen.kt) -->
+    <string name="workout_history_title">History</string>
+    <string name="workout_history_previous_month_content_description">Previous month</string>
+    <string name="workout_history_next_month_content_description">Next month</string>
+    <string name="workout_history_empty_day">No training on this day.</string>
+    <string name="workout_history_session_caption">SESSION</string>
+    <string name="workout_history_session_volume">Volume %1$s kg</string>
+    <string name="workout_history_delete_session_content_description">Delete session</string>
+    <string name="workout_history_session_deleted_message">Session deleted</string>
 </resources>
