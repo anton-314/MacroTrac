@@ -3,10 +3,9 @@ package dev.antonlammers.trainist.ui.stats
 import dev.antonlammers.trainist.domain.WorkoutMetrics
 import dev.antonlammers.trainist.domain.model.ExerciseType
 import dev.antonlammers.trainist.domain.model.WorkoutSession
+import dev.antonlammers.trainist.ui.util.localizedDateFormatter
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -32,9 +31,12 @@ data class StrengthChartData(
 data class ExerciseOption(val stableId: String, val name: String)
 
 /**
- * Pure, Android-free training-series math (spec §3.7) so the stats logic stays unit-testable — the
+ * Training-series math (spec §3.7), unit-testable without Robolectric/instrumentation — the
  * training counterpart to [WeightSeries]. Buckets align with the existing calorie/weight charts
- * (per day for WEEK/MONTH, per month for YEAR) over the same [TimeRange] axis.
+ * (per day for WEEK/MONTH, per month for YEAR) over the same [TimeRange] axis. [frequency]'s bucket
+ * labels resolve the app's current locale via [localizedDateFormatter] (backed by
+ * `AppCompatDelegate`, safe to call outside a Compose/Activity context — verified this still runs
+ * cleanly under plain JVM unit tests, see `WorkoutSeriesTest`).
  */
 internal object WorkoutSeries {
 
@@ -45,7 +47,7 @@ internal object WorkoutSeries {
     fun frequency(range: TimeRange, from: LocalDate, to: LocalDate, sessionDates: List<LocalDate>): List<ChartPoint> =
         when (range) {
             TimeRange.WEEK, TimeRange.MONTH -> {
-                val fmt = if (range == TimeRange.WEEK) DAY_OF_WEEK_FMT else DAY_OF_MONTH_FMT
+                val fmt = if (range == TimeRange.WEEK) dayOfWeekFmt() else dayOfMonthFmt()
                 val byDate = sessionDates.groupingBy { it }.eachCount()
                 generateSequence(from) { d -> if (d < to) d.plusDays(1) else null }
                     .map { date -> ChartPoint(date.format(fmt), (byDate[date] ?: 0).toDouble()) }
@@ -56,7 +58,7 @@ internal object WorkoutSeries {
                 val fromMonth = YearMonth.from(from)
                 val toMonth = YearMonth.from(to)
                 generateSequence(fromMonth) { m -> if (m < toMonth) m.plusMonths(1) else null }
-                    .map { month -> ChartPoint(month.format(MONTH_FMT), (byMonth[month] ?: 0).toDouble()) }
+                    .map { month -> ChartPoint(month.format(monthFmt()), (byMonth[month] ?: 0).toDouble()) }
                     .toList()
             }
         }
@@ -125,7 +127,9 @@ internal object WorkoutSeries {
     private fun floorToHalf(v: Double) = floor(v * 2) / 2
     private fun ceilToHalf(v: Double) = ceil(v * 2) / 2
 
-    private val DAY_OF_WEEK_FMT = DateTimeFormatter.ofPattern("EE", Locale("de"))
-    private val DAY_OF_MONTH_FMT = DateTimeFormatter.ofPattern("d", Locale("de"))
-    private val MONTH_FMT = DateTimeFormatter.ofPattern("MMM", Locale("de"))
+    // Functions (not top-level vals) so a locale changed at runtime is picked up on the next call
+    // rather than being fixed at class-load time.
+    private fun dayOfWeekFmt() = localizedDateFormatter("EE")
+    private fun dayOfMonthFmt() = localizedDateFormatter("d")
+    private fun monthFmt() = localizedDateFormatter("MMM")
 }

@@ -26,8 +26,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dev.antonlammers.trainist.R
 import dev.antonlammers.trainist.domain.model.Exercise
 
 /**
@@ -60,7 +62,7 @@ fun ExercisePickerSheet(
                 .padding(bottom = 8.dp),
         ) {
             Text(
-                "Übung hinzufügen",
+                stringResource(R.string.workout_add_exercise_button),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
             )
@@ -70,7 +72,7 @@ fun ExercisePickerSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 8.dp),
-                placeholder = { Text("Übung suchen") },
+                placeholder = { Text(stringResource(R.string.workout_exercise_search_placeholder)) },
                 leadingIcon = {
                     Icon(Icons.Rounded.Search, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
                 },
@@ -125,7 +127,7 @@ private fun PickerEmptyHint() {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            "Keine Übungen gefunden.",
+            stringResource(R.string.workout_exercise_picker_empty),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

@@ -53,11 +53,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import dev.antonlammers.trainist.R
 import dev.antonlammers.trainist.domain.model.ExerciseType
 import dev.antonlammers.trainist.domain.model.SetEntry
 import dev.antonlammers.trainist.domain.model.SetType
@@ -66,6 +68,7 @@ import dev.antonlammers.trainist.notification.RestTimerScheduler
 import dev.antonlammers.trainist.ui.components.DragReorderColumn
 import dev.antonlammers.trainist.ui.components.NumericTextField
 import dev.antonlammers.trainist.ui.navigation.Screen
+import dev.antonlammers.trainist.ui.util.currentAppLocale
 
 /**
  * The live-session screen (spec §3.3, grundgerüst). Renders [WorkoutSessionViewModel]'s ui state:
@@ -133,19 +136,15 @@ fun WorkoutSessionScreen(
     pendingTemplateUpdate?.let { merged ->
         AlertDialog(
             onDismissRequest = viewModel::dismissTemplateUpdate,
-            title = { Text("Vorlage aktualisieren?") },
+            title = { Text(stringResource(R.string.workout_session_template_update_title)) },
             text = {
-                Text(
-                    "Du hast diese Einheit gegenüber der Vorlage »${merged.name}« verändert. " +
-                        "Sollen die Änderungen (z. B. mehr Sätze oder geänderte Satztypen) für das " +
-                        "nächste Mal übernommen werden? Ausgelassene Übungen bleiben erhalten.",
-                )
+                Text(stringResource(R.string.workout_session_template_update_text, merged.name))
             },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmTemplateUpdate) { Text("Aktualisieren") }
+                TextButton(onClick = viewModel::confirmTemplateUpdate) { Text(stringResource(R.string.workout_session_template_update_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = viewModel::dismissTemplateUpdate) { Text("Beibehalten") }
+                TextButton(onClick = viewModel::dismissTemplateUpdate) { Text(stringResource(R.string.workout_session_template_update_dismiss)) }
             },
         )
     }
@@ -153,16 +152,16 @@ fun WorkoutSessionScreen(
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
-            title = { Text("Workout verwerfen?") },
-            text = { Text("Die laufende Einheit wird gelöscht und nicht gespeichert.") },
+            title = { Text(stringResource(R.string.workout_session_discard_title)) },
+            text = { Text(stringResource(R.string.workout_session_discard_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDiscardDialog = false
                     viewModel.discard()
-                }) { Text("Verwerfen", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.workout_session_discard_confirm), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { showDiscardDialog = false }) { Text("Abbrechen") }
+                TextButton(onClick = { showDiscardDialog = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -170,22 +169,22 @@ fun WorkoutSessionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Workout") },
+                title = { Text(stringResource(R.string.workout_session_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Zurück")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { showDiscardDialog = true }) {
                         Icon(
                             Icons.Rounded.Close,
-                            contentDescription = "Verwerfen",
+                            contentDescription = stringResource(R.string.workout_session_discard_confirm),
                             tint = MaterialTheme.colorScheme.error,
                         )
                     }
                     TextButton(onClick = viewModel::finish, enabled = !state.loading) {
-                        Text("Fertig", style = MaterialTheme.typography.labelLarge)
+                        Text(stringResource(R.string.workout_session_finish_button), style = MaterialTheme.typography.labelLarge)
                     }
                 },
             )
@@ -238,7 +237,7 @@ fun WorkoutSessionScreen(
                     ) {
                         Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Text(
-                            "Übung hinzufügen",
+                            stringResource(R.string.workout_add_exercise_button),
                             style = MaterialTheme.typography.labelLarge,
                             modifier = Modifier.padding(start = 8.dp),
                         )
@@ -263,7 +262,13 @@ private fun ExerciseCard(
     onSetTypeChange: (Int, SetType) -> Unit,
     onRestChange: (Int) -> Unit,
 ) {
-    val weightCaption = if (exercise.type == ExerciseType.BODYWEIGHT) "ZUSATZ" else "KG"
+    val weightCaption = stringResource(
+        if (exercise.type == ExerciseType.BODYWEIGHT) {
+            R.string.workout_session_weight_caption_added
+        } else {
+            R.string.workout_session_weight_caption_kg
+        },
+    )
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -281,16 +286,16 @@ private fun ExerciseCard(
             )
             RestDurationChip(restSeconds = exercise.restSeconds, onRestChange = onRestChange)
             IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Rounded.Close, contentDescription = "Übung entfernen", tint = MaterialTheme.colorScheme.outline)
+                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.workout_session_remove_exercise_content_description), tint = MaterialTheme.colorScheme.outline)
             }
         }
 
         // Column captions — spacing must mirror SetRow's spacedBy(8.dp) so captions sit above their fields.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(Modifier.width(28.dp)) // spacer for the drag-handle column
-            Caption("SATZ", Modifier.width(32.dp))
+            Caption(stringResource(R.string.workout_session_set_number_caption), Modifier.width(32.dp))
             Caption(weightCaption, Modifier.weight(1f))
-            Caption("WDH", Modifier.weight(1f))
+            Caption(stringResource(R.string.workout_session_reps_caption), Modifier.weight(1f))
             // spacers for the check + delete columns
             Box(Modifier.width(88.dp))
         }
@@ -321,14 +326,14 @@ private fun ExerciseCard(
 
         TextButton(onClick = onAddSet) {
             Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text("Satz hinzufügen", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 8.dp))
+            Text(stringResource(R.string.workout_add_set_button), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 8.dp))
         }
 
         // Volume + estimated 1RM summary — only once at least one work set has been logged (spec §3.4).
         if (exercise.volumeKg > 0.0 || exercise.estimatedOneRepMaxKg != null) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                MetricStat("VOLUMEN", "${formatKg(exercise.volumeKg)} kg")
+                MetricStat(stringResource(R.string.workout_session_volume_label), "${formatKg(exercise.volumeKg)} kg")
                 exercise.estimatedOneRepMaxKg?.let { MetricStat("E1RM", "${formatKg(it)} kg") }
             }
         }
@@ -378,7 +383,7 @@ private fun SetRow(
     ) {
         Icon(
             Icons.Rounded.DragIndicator,
-            contentDescription = "Ziehen zum Verschieben",
+            contentDescription = stringResource(R.string.workout_session_drag_handle_content_description),
             tint = MaterialTheme.colorScheme.outline,
             modifier = dragHandleModifier.size(28.dp),
         )
@@ -406,13 +411,13 @@ private fun SetRow(
         )
         IconButton(onClick = onToggleCompleted, modifier = Modifier.size(40.dp)) {
             if (set.completed) {
-                Icon(Icons.Rounded.CheckCircle, contentDescription = "Satz erledigt", tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Rounded.CheckCircle, contentDescription = stringResource(R.string.workout_session_set_completed_content_description), tint = MaterialTheme.colorScheme.primary)
             } else {
-                Icon(Icons.Rounded.RadioButtonUnchecked, contentDescription = "Satz offen", tint = MaterialTheme.colorScheme.outline)
+                Icon(Icons.Rounded.RadioButtonUnchecked, contentDescription = stringResource(R.string.workout_session_set_open_content_description), tint = MaterialTheme.colorScheme.outline)
             }
         }
         IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
-            Icon(Icons.Rounded.Close, contentDescription = "Satz löschen", tint = MaterialTheme.colorScheme.outline)
+            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.workout_session_delete_set_content_description), tint = MaterialTheme.colorScheme.outline)
         }
     }
 }
@@ -431,7 +436,7 @@ private fun Caption(text: String, modifier: Modifier = Modifier) {
 private fun EmptySessionHint() {
     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
         Text(
-            "Noch keine Übungen — füge welche über den Button unten hinzu.",
+            stringResource(R.string.workout_session_empty_hint),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -476,7 +481,7 @@ private fun RestTimerBar(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        if (timer.isPaused) "PAUSE PAUSIERT" else "PAUSE",
+                        stringResource(if (timer.isPaused) R.string.workout_session_rest_paused_label else R.string.workout_session_rest_label),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -485,14 +490,14 @@ private fun RestTimerBar(
                 TextButton(onClick = { onAdjust(-ADJUST_STEP_SECONDS) }) { Text("−15") }
                 IconButton(onClick = onPauseResume) {
                     if (timer.isPaused) {
-                        Icon(Icons.Rounded.PlayArrow, contentDescription = "Fortsetzen", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.workout_session_rest_resume_content_description), tint = MaterialTheme.colorScheme.primary)
                     } else {
-                        Icon(Icons.Rounded.Pause, contentDescription = "Pausieren", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Rounded.Pause, contentDescription = stringResource(R.string.workout_session_rest_pause_content_description), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
                 TextButton(onClick = { onAdjust(ADJUST_STEP_SECONDS) }) { Text("+15") }
                 IconButton(onClick = onSkip) {
-                    Icon(Icons.Rounded.SkipNext, contentDescription = "Überspringen", tint = MaterialTheme.colorScheme.outline)
+                    Icon(Icons.Rounded.SkipNext, contentDescription = stringResource(R.string.workout_session_rest_skip_content_description), tint = MaterialTheme.colorScheme.outline)
                 }
             }
         }
@@ -541,6 +546,6 @@ private val REST_PRESETS = listOf(30, 60, 90, 120, 150, 180, 240)
 
 private fun formatMmSs(totalSeconds: Int): String {
     val safe = totalSeconds.coerceAtLeast(0)
-    return "%d:%02d".format(safe / 60, safe % 60)
+    return "%d:%02d".format(currentAppLocale(), safe / 60, safe % 60)
 }
 

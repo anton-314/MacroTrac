@@ -45,21 +45,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import dev.antonlammers.trainist.R
 import dev.antonlammers.trainist.domain.model.ExerciseType
 import dev.antonlammers.trainist.domain.model.SetEntry
 import dev.antonlammers.trainist.ui.components.NumericTextField
 import dev.antonlammers.trainist.ui.navigation.Screen
+import dev.antonlammers.trainist.ui.util.currentAppLocale
+import dev.antonlammers.trainist.ui.util.localizedDateFormatter
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * Training history (spec §3.6): a month calendar with a dot on training days; tapping a day shows its
@@ -77,13 +79,18 @@ fun WorkoutHistoryScreen(
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    // Resolved here (not inside the snackbar-launching lambda below, which runs in a coroutine
+    // scope rather than a @Composable context, so stringResource() isn't callable there).
+    val sessionDeletedMessage = stringResource(R.string.workout_history_session_deleted_message)
+    val undoLabel = stringResource(R.string.common_undo)
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Verlauf") },
+                title = { Text(stringResource(R.string.workout_history_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Zurück")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
             )
@@ -128,8 +135,8 @@ fun WorkoutHistoryScreen(
                                 viewModel.deletePending(session.id)
                                 scope.launch {
                                     val result = snackbar.showSnackbar(
-                                        message = "Einheit gelöscht",
-                                        actionLabel = "Rückgängig",
+                                        message = sessionDeletedMessage,
+                                        actionLabel = undoLabel,
                                         duration = SnackbarDuration.Short,
                                     )
                                     when (result) {
@@ -150,9 +157,16 @@ fun WorkoutHistoryScreen(
 // Calendar
 // ─────────────────────────────────────────────────────────────────────────────
 
-private val WEEKDAY_LABELS = listOf("MO", "DI", "MI", "DO", "FR", "SA", "SO")
-private val MONTH_FORMATTER = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.GERMAN)
-private val DAY_FORMATTER = DateTimeFormatter.ofPattern("EEEE, d. MMMM", Locale.GERMAN)
+/** Monday-first weekday abbreviations in the app's current locale (not hardcoded German). */
+private fun weekdayLabels(): List<String> {
+    val fmt = localizedDateFormatter("EE")
+    val locale = currentAppLocale()
+    val monday = LocalDate.of(2024, 1, 1) // a known Monday
+    return (0..6).map { monday.plusDays(it.toLong()).format(fmt).uppercase(locale) }
+}
+
+private fun monthFormatter() = localizedDateFormatter("MMMM yyyy")
+private fun dayFormatter() = localizedDateFormatter("EEEE, d. MMMM")
 
 @Composable
 private fun MonthCalendar(
@@ -175,21 +189,21 @@ private fun MonthCalendar(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onPrevious) {
-                Icon(Icons.Rounded.ChevronLeft, contentDescription = "Vorheriger Monat")
+                Icon(Icons.Rounded.ChevronLeft, contentDescription = stringResource(R.string.workout_history_previous_month_content_description))
             }
             Text(
-                month.atDay(1).format(MONTH_FORMATTER).replaceFirstChar { it.uppercase() },
+                month.atDay(1).format(monthFormatter()).replaceFirstChar { it.uppercase() },
                 style = MaterialTheme.typography.titleLarge,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = onNext) {
-                Icon(Icons.Rounded.ChevronRight, contentDescription = "Nächster Monat")
+                Icon(Icons.Rounded.ChevronRight, contentDescription = stringResource(R.string.workout_history_next_month_content_description))
             }
         }
 
         Row(Modifier.fillMaxWidth()) {
-            WEEKDAY_LABELS.forEach { label ->
+            weekdayLabels().forEach { label ->
                 Text(
                     label,
                     style = MaterialTheme.typography.labelSmall,
@@ -284,7 +298,7 @@ private fun weeksOf(month: YearMonth): List<List<LocalDate?>> {
 @Composable
 private fun DayHeader(date: LocalDate) {
     Text(
-        date.format(DAY_FORMATTER).replaceFirstChar { it.uppercase() },
+        date.format(dayFormatter()).replaceFirstChar { it.uppercase() },
         style = MaterialTheme.typography.titleMedium,
     )
 }
@@ -293,7 +307,7 @@ private fun DayHeader(date: LocalDate) {
 private fun EmptyDayHint() {
     Box(Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
         Text(
-            "Kein Training an diesem Tag.",
+            stringResource(R.string.workout_history_empty_day),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -322,11 +336,11 @@ private fun SessionCard(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Caption("EINHEIT")
-                Text("Volumen ${formatKg(session.totalVolumeKg)} kg", style = MaterialTheme.typography.titleMedium)
+                Caption(stringResource(R.string.workout_history_session_caption))
+                Text(stringResource(R.string.workout_history_session_volume, formatKg(session.totalVolumeKg)), style = MaterialTheme.typography.titleMedium)
             }
             IconButton(onClick = onDelete) {
-                Icon(Icons.Rounded.Delete, contentDescription = "Einheit löschen", tint = MaterialTheme.colorScheme.error)
+                Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.workout_history_delete_session_content_description), tint = MaterialTheme.colorScheme.error)
             }
         }
 
@@ -354,7 +368,13 @@ private fun ExerciseBlock(
     onAddSet: () -> Unit,
     onRemoveSet: (Int) -> Unit,
 ) {
-    val weightCaption = if (exercise.type == ExerciseType.BODYWEIGHT) "ZUSATZ" else "KG"
+    val weightCaption = stringResource(
+        if (exercise.type == ExerciseType.BODYWEIGHT) {
+            R.string.workout_session_weight_caption_added
+        } else {
+            R.string.workout_session_weight_caption_kg
+        },
+    )
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
@@ -366,9 +386,9 @@ private fun ExerciseBlock(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Caption("SATZ", Modifier.width(32.dp))
+            Caption(stringResource(R.string.workout_session_set_number_caption), Modifier.width(32.dp))
             Caption(weightCaption, Modifier.weight(1f))
-            Caption("WDH", Modifier.weight(1f))
+            Caption(stringResource(R.string.workout_session_reps_caption), Modifier.weight(1f))
             Box(Modifier.width(40.dp))
         }
 
@@ -385,12 +405,12 @@ private fun ExerciseBlock(
 
         TextButton(onClick = onAddSet) {
             Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text("Satz hinzufügen", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 8.dp))
+            Text(stringResource(R.string.workout_add_set_button), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 8.dp))
         }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-            MetricStat("VOLUMEN", "${formatKg(exercise.volumeKg)} kg")
+            MetricStat(stringResource(R.string.workout_session_volume_label), "${formatKg(exercise.volumeKg)} kg")
             exercise.estimatedOneRepMaxKg?.let { MetricStat("E1RM", "${formatKg(it)} kg") }
         }
     }
@@ -427,7 +447,7 @@ private fun HistorySetRow(
             modifier = Modifier.weight(1f),
         )
         IconButton(onClick = onRemove, modifier = Modifier.width(40.dp)) {
-            Icon(Icons.Rounded.Delete, contentDescription = "Satz löschen", tint = MaterialTheme.colorScheme.outline)
+            Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.workout_session_delete_set_content_description), tint = MaterialTheme.colorScheme.outline)
         }
     }
 }

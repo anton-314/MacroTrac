@@ -31,11 +31,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import dev.antonlammers.trainist.R
 import dev.antonlammers.trainist.domain.ExerciseSessionLog
 import dev.antonlammers.trainist.domain.PerformedSet
 import dev.antonlammers.trainist.domain.model.Exercise
@@ -43,9 +45,8 @@ import dev.antonlammers.trainist.domain.model.ExerciseType
 import dev.antonlammers.trainist.domain.model.SetType
 import dev.antonlammers.trainist.ui.stats.StrengthChart
 import dev.antonlammers.trainist.ui.stats.evenlySpacedDates
+import dev.antonlammers.trainist.ui.util.localizedDateFormatter
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * Per-exercise detail (spec §3.8): the exercise's catalog metadata, its current max-weight PR, an
@@ -64,10 +65,10 @@ fun ExerciseDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(state.exercise?.name ?: "Übung", maxLines = 1) },
+                title = { Text(state.exercise?.name ?: stringResource(R.string.exercise_detail_title_fallback), maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Zurück")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
             )
@@ -88,17 +89,17 @@ fun ExerciseDetailScreen(
                 }
 
                 item(key = "strength") {
-                    DetailCard("KRAFTVERLAUF") {
+                    DetailCard(stringResource(R.string.exercise_detail_strength_header)) {
                         val strength = state.strength
                         if (strength.samples.size < 2) {
                             Text(
-                                "Noch nicht genug Daten für einen Verlauf.",
+                                stringResource(R.string.exercise_detail_strength_empty),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         } else {
                             val spanDays = strength.rangeEnd.toEpochDay() - strength.rangeStart.toEpochDay()
-                            val fmt = if (spanDays >= 180) MONTH_YEAR_FMT else DAY_MONTH_FMT
+                            val fmt = if (spanDays >= 180) monthYearFmt() else dayMonthFmt()
                             StrengthChart(
                                 data = strength,
                                 tickDates = evenlySpacedDates(strength.rangeStart, strength.rangeEnd, 4),
@@ -119,13 +120,13 @@ fun ExerciseDetailScreen(
                 }
 
                 item(key = "history-header") {
-                    Text("VERLAUF", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.exercise_detail_history_header), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 if (state.history.sessions.isEmpty()) {
                     item(key = "history-empty") {
                         Text(
-                            "Diese Übung wurde noch nicht trainiert.",
+                            stringResource(R.string.exercise_detail_history_empty),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -159,7 +160,7 @@ private fun PrCard(prKg: Double) {
             modifier = Modifier.size(28.dp),
         )
         Column(Modifier.weight(1f)) {
-            Text("PERSÖNLICHER REKORD", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.exercise_detail_pr_label), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("${formatKg(prKg)} kg", style = MaterialTheme.typography.headlineSmall)
         }
     }
@@ -167,16 +168,16 @@ private fun PrCard(prKg: Double) {
 
 @Composable
 private fun MetadataCard(exercise: Exercise) {
-    DetailCard("ÜBUNG") {
-        MetaField("TYP", exercise.type.displayName())
+    DetailCard(stringResource(R.string.exercise_detail_metadata_header)) {
+        MetaField(stringResource(R.string.exercise_editor_type_label), exercise.type.displayName())
         exercise.primaryMuscles.takeIf { it.isNotEmpty() }?.let {
-            MetaField("MUSKELN", it.joinToString(", ") { m -> m.titleCase() })
+            MetaField(stringResource(R.string.exercise_detail_muscles_label), it.joinToString(", ") { m -> m.titleCase() })
         }
-        exercise.equipment?.let { MetaField("EQUIPMENT", it.titleCase()) }
-        exercise.mechanic?.let { MetaField("MECHANIK", it.displayName()) }
-        exercise.category?.let { MetaField("KATEGORIE", it.titleCase()) }
+        exercise.equipment?.let { MetaField(stringResource(R.string.exercise_catalog_equipment_filter_label), it.titleCase()) }
+        exercise.mechanic?.let { MetaField(stringResource(R.string.exercise_editor_mechanic_label), it.displayName()) }
+        exercise.category?.let { MetaField(stringResource(R.string.exercise_detail_category_label), it.titleCase()) }
         if (exercise.instructions.isNotEmpty()) {
-            Text("ANLEITUNG", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.exercise_detail_instructions_label), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             exercise.instructions.forEachIndexed { index, line ->
                 Text("${index + 1}. $line", style = MaterialTheme.typography.bodyMedium)
             }
@@ -203,7 +204,7 @@ private fun SessionLogCard(session: ExerciseSessionLog, type: ExerciseType) {
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(session.date.format(SESSION_DATE_FMT), style = MaterialTheme.typography.titleMedium)
+        Text(session.date.format(sessionDateFmt()), style = MaterialTheme.typography.titleMedium)
         session.sets.forEach { set -> SetLogRow(set, type) }
     }
 }
@@ -227,10 +228,12 @@ private fun SetLogRow(set: PerformedSet, type: ExerciseType) {
 }
 
 /** Human line for a logged set: "80 kg × 5", "KG +10 × 8", or "KG × 8" (bodyweight, no added). */
+@Composable
 private fun setLine(type: ExerciseType, set: PerformedSet): String {
+    val kgCaption = stringResource(R.string.workout_session_weight_caption_kg)
     val weightText = when {
-        type == ExerciseType.BODYWEIGHT && set.weightKg == 0.0 -> "KG"
-        type == ExerciseType.BODYWEIGHT -> "KG +${formatKg(set.weightKg)}"
+        type == ExerciseType.BODYWEIGHT && set.weightKg == 0.0 -> kgCaption
+        type == ExerciseType.BODYWEIGHT -> "$kgCaption +${formatKg(set.weightKg)}"
         else -> "${formatKg(set.weightKg)} kg"
     }
     return "$weightText × ${set.reps}"
@@ -256,6 +259,6 @@ private fun DetailCard(title: String, content: @Composable () -> Unit) {
 private val Exercise.hasMetadata: Boolean
     get() = primaryMuscles.isNotEmpty() || equipment != null || mechanic != null || category != null || instructions.isNotEmpty()
 
-private val SESSION_DATE_FMT = DateTimeFormatter.ofPattern("d. MMMM yyyy", Locale("de"))
-private val DAY_MONTH_FMT = DateTimeFormatter.ofPattern("d.M.", Locale("de"))
-private val MONTH_YEAR_FMT = DateTimeFormatter.ofPattern("MMM yy", Locale("de"))
+private fun sessionDateFmt() = localizedDateFormatter("d. MMMM yyyy")
+private fun dayMonthFmt() = localizedDateFormatter("d.M.")
+private fun monthYearFmt() = localizedDateFormatter("MMM yy")

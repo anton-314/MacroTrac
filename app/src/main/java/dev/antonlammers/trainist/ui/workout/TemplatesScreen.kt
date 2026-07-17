@@ -47,11 +47,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import dev.antonlammers.trainist.R
 import dev.antonlammers.trainist.ui.components.DragReorderColumn
 import dev.antonlammers.trainist.ui.navigation.Screen
 import kotlinx.coroutines.launch
@@ -78,19 +81,24 @@ fun TemplatesScreen(
     val snackbar = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
+    // Resolved here (not inside the snackbar-launching lambda below, which runs in a coroutine
+    // scope rather than a @Composable context, so stringResource() isn't callable there).
+    val templateDeletedMessage = stringResource(R.string.templates_deleted_message)
+    val undoLabel = stringResource(R.string.common_undo)
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Training") },
+                title = { Text(stringResource(R.string.templates_title)) },
                 actions = {
                     IconButton(onClick = { navController.navigate(Screen.WorkoutHistory.route) }) {
-                        Icon(Icons.Rounded.CalendarMonth, contentDescription = "Verlauf")
+                        Icon(Icons.Rounded.CalendarMonth, contentDescription = stringResource(R.string.templates_history_content_description))
                     }
                     IconButton(onClick = { navController.navigate(Screen.TemplateEditor.forTemplate(0)) }) {
-                        Icon(Icons.Rounded.Add, contentDescription = "Neue Vorlage")
+                        Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.templates_new_template_content_description))
                     }
                     IconButton(onClick = { navController.navigate(Screen.ExerciseCatalog.route) }) {
-                        Icon(Icons.Rounded.MenuBook, contentDescription = "Übungskatalog")
+                        Icon(Icons.Rounded.MenuBook, contentDescription = stringResource(R.string.templates_catalog_content_description))
                     }
                 },
             )
@@ -103,7 +111,7 @@ fun TemplatesScreen(
                 elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp, 0.dp, 0.dp),
                 shape = RoundedCornerShape(20.dp),
                 icon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
-                text = { Text("Workout starten", style = MaterialTheme.typography.labelLarge) },
+                text = { Text(stringResource(R.string.templates_start_workout_button), style = MaterialTheme.typography.labelLarge) },
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },
@@ -140,8 +148,8 @@ fun TemplatesScreen(
                                 viewModel.deletePending(template)
                                 coroutineScope.launch {
                                     val result = snackbar.showSnackbar(
-                                        message = "Vorlage gelöscht",
-                                        actionLabel = "Rückgängig",
+                                        message = templateDeletedMessage,
+                                        actionLabel = undoLabel,
                                         duration = SnackbarDuration.Short,
                                     )
                                     when (result) {
@@ -177,12 +185,12 @@ private fun ActiveSessionBanner(onClick: () -> Unit) {
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                "Laufende Einheit",
+                stringResource(R.string.templates_active_session_title),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
             Text(
-                "Tippen zum Fortsetzen",
+                stringResource(R.string.templates_active_session_subtitle),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
@@ -239,12 +247,12 @@ private fun SwipeBackground(target: SwipeToDismissBoxValue) {
         when (target) {
             SwipeToDismissBoxValue.EndToStart -> Icon(
                 Icons.Rounded.Delete,
-                contentDescription = "Löschen",
+                contentDescription = stringResource(R.string.common_delete),
                 tint = MaterialTheme.colorScheme.onErrorContainer,
             )
             SwipeToDismissBoxValue.StartToEnd -> Icon(
                 Icons.Rounded.Edit,
-                contentDescription = "Bearbeiten",
+                contentDescription = stringResource(R.string.common_edit),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
             )
             else -> {}
@@ -269,7 +277,7 @@ private fun TemplateCard(item: TemplateListItem, dragHandleModifier: Modifier, o
     ) {
         Icon(
             Icons.Rounded.DragIndicator,
-            contentDescription = "Verschieben",
+            contentDescription = stringResource(R.string.templates_drag_handle_content_description),
             tint = MaterialTheme.colorScheme.outline,
             modifier = dragHandleModifier,
         )
@@ -297,9 +305,9 @@ private fun EmptyTemplates() {
             tint = MaterialTheme.colorScheme.outline,
             modifier = Modifier.size(28.dp),
         )
-        Text("Noch keine Vorlagen", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        Text(stringResource(R.string.templates_empty_title), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
         Text(
-            "Lege über das Plus-Symbol eine Workout-Vorlage an — oder starte direkt ein freies Workout.",
+            stringResource(R.string.templates_empty_body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -307,13 +315,14 @@ private fun EmptyTemplates() {
     }
 }
 
-/** "Heute" / "Gestern" / "Vor N Tagen" / "Noch nie trainiert" — orientation, not a precise date. */
+/** "Today" / "Yesterday" / "N days ago" / "Never trained" — orientation, not a precise date. */
+@Composable
 private fun LocalDate?.lastUsedText(): String {
-    if (this == null) return "Noch nie trainiert"
+    if (this == null) return stringResource(R.string.templates_never_trained)
     val days = ChronoUnit.DAYS.between(this, LocalDate.now())
     return when {
-        days <= 0L -> "Heute"
-        days == 1L -> "Gestern"
-        else -> "Vor $days Tagen"
+        days <= 0L -> stringResource(R.string.common_today)
+        days == 1L -> stringResource(R.string.common_yesterday)
+        else -> pluralStringResource(R.plurals.common_days_ago, days.toInt(), days.toInt())
     }
 }

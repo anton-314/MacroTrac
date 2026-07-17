@@ -1,3 +1,327 @@
 <resources>
     <string name="app_name">Trainist</string>
+
+    <!-- common_* — app-wide reused labels -->
+    <string name="common_stop">Stoppen</string>
+    <string name="common_back">Zurück</string>
+    <string name="common_ok">OK</string>
+    <string name="common_save">Speichern</string>
+    <string name="common_delete">Löschen</string>
+    <string name="common_edit">Bearbeiten</string>
+    <string name="common_undo">Rückgängig</string>
+    <string name="common_cancel">Abbrechen</string>
+    <string name="common_today">Heute</string>
+    <string name="common_yesterday">Gestern</string>
+    <plurals name="common_days_ago">
+        <item quantity="one">Vor %d Tag</item>
+        <item quantity="other">Vor %d Tagen</item>
+    </plurals>
+
+    <!-- Meal categories (domain/model/MealCategory) -->
+    <string name="meal_category_breakfast">Frühstück</string>
+    <string name="meal_category_lunch">Mittagessen</string>
+    <string name="meal_category_dinner">Abendessen</string>
+    <string name="meal_category_snack">Snack</string>
+
+    <!-- Food tags (ui/components/FoodTagUi.kt) -->
+    <string name="food_tag_healthy">Gesund</string>
+    <string name="food_tag_neutral">Neutral</string>
+    <string name="food_tag_unhealthy">Ungesund</string>
+    <string name="food_tag_none">Kein Tag</string>
+    <string name="food_tag_selector_label">TAG</string>
+
+    <!-- Workout set types (ui/workout/SetTypeUi.kt) -->
+    <string name="workout_set_type_normal">Normal</string>
+    <string name="workout_set_type_warmup">Aufwärmen</string>
+    <string name="workout_set_type_drop">Drop-Satz</string>
+    <string name="workout_set_type_failure">Failure</string>
+
+    <!-- Exercise metadata formatting (ui/workout/ExerciseFormat.kt) -->
+    <string name="workout_exercise_type_weight_reps">Gewicht × Reps</string>
+    <string name="workout_exercise_type_bodyweight">Körpergewicht</string>
+    <string name="workout_mechanic_compound">Verbund</string>
+    <string name="workout_mechanic_isolation">Isolation</string>
+
+    <!-- Personal-record badge (ui/workout/PrBadge.kt) -->
+    <string name="workout_pr_content_description">Persönlicher Rekord</string>
+    <string name="workout_pr_label">PR</string>
+
+    <!-- Daily meal reminder (notification/MealReminderNotifier.kt) -->
+    <string name="meal_reminder_channel_name">Tägliche Erinnerung</string>
+    <string name="meal_reminder_channel_description">Erinnert dich, wenn du bis 17 Uhr noch nichts eingetragen hast.</string>
+    <string name="meal_reminder_notification_title">Heute noch nichts getrackt</string>
+    <string name="meal_reminder_notification_text">Du hast bis jetzt keine Mahlzeit eingetragen. Tippe, um es nachzuholen.</string>
+
+    <!-- Rest timer (notification/RestTimerNotifier.kt) -->
+    <string name="rest_timer_ongoing_title">Satzpause · %1$s</string>
+    <string name="rest_timer_paused_title">Pausiert · %1$s</string>
+    <string name="rest_timer_channel_ongoing_name">Ruhe-Timer (Status)</string>
+    <string name="rest_timer_channel_ongoing_description">Zeigt die laufende Satzpause an, solange sie läuft.</string>
+    <string name="rest_timer_channel_alert_name">Ruhe-Timer</string>
+    <string name="rest_timer_channel_alert_description">Meldet, wenn die Satzpause abgelaufen ist.</string>
+    <string name="rest_timer_expired_title">Pause vorbei</string>
+    <string name="rest_timer_expired_text">Zeit für den nächsten Satz.</string>
+
+    <!-- AddFoodScreen (ui/addfood/AddFoodScreen.kt) -->
+    <string name="addfood_title">Mahlzeit hinzufügen</string>
+    <string name="addfood_title_for_date">Eintrag für %1$s</string>
+    <string name="addfood_add_custom_food_content_description">Eigenes Lebensmittel</string>
+    <string name="addfood_tab_history">Verlauf</string>
+    <string name="addfood_tab_custom_foods">Meine Lebensmittel</string>
+    <string name="addfood_empty_custom_foods">Noch keine eigenen Lebensmittel.\nTippe auf + um eines anzulegen.</string>
+    <string name="addfood_empty_history">Noch keine Einträge im Verlauf.</string>
+    <string name="addfood_empty_search_results">Keine Ergebnisse</string>
+    <string name="addfood_custom_food_deleted">Lebensmittel gelöscht</string>
+    <string name="addfood_entry_deleted">Eintrag gelöscht</string>
+    <string name="addfood_search_placeholder">Lebensmittel suchen</string>
+    <string name="addfood_scan_barcode_content_description">Barcode scannen</string>
+    <string name="addfood_food_detail_per_100g">%1$d kcal · %2$dg P · %3$dg K · %4$dg F · pro 100 g</string>
+    <string name="addfood_food_detail_total">%1$d kcal · %2$dg P · %3$dg K · %4$dg F</string>
+    <string name="addfood_custom_food_dialog_title_new">Neues Lebensmittel</string>
+    <string name="addfood_custom_food_dialog_title_edit">Lebensmittel bearbeiten</string>
+    <string name="addfood_field_name">Name *</string>
+    <string name="addfood_field_brand">Marke (optional)</string>
+    <string name="addfood_field_kcal">kcal / 100 g *</string>
+    <string name="addfood_field_protein">Protein g / 100 g *</string>
+    <string name="addfood_field_carbs">Kohlenhydrate g / 100 g *</string>
+    <string name="addfood_field_fat">Fett g / 100 g *</string>
+    <string name="addfood_field_sugar">Zucker g / 100 g</string>
+    <string name="addfood_field_fiber">Ballaststoffe g / 100 g</string>
+    <string name="addfood_field_salt">Salz g / 100 g</string>
+    <string name="addfood_amount_label">MENGE</string>
+    <string name="addfood_meal_label">MAHLZEIT</string>
+    <string name="addfood_add_button">Hinzufügen</string>
+    <string name="addfood_barcode_error_title">Barcode-Suche</string>
+    <string name="addfood_barcode_error_not_found">Produkt nicht gefunden</string>
+    <string name="addfood_barcode_error_server_unavailable">Open Food Facts nicht erreichbar</string>
+    <string name="addfood_barcode_error_network_unavailable">Keine Internetverbindung</string>
+    <string name="addfood_barcode_error_unknown">Unbekannter Fehler</string>
+
+    <!-- BarcodeScannerScreen (ui/addfood/BarcodeScannerScreen.kt) -->
+    <string name="barcode_scanner_torch_off_content_description">Taschenlampe ausschalten</string>
+    <string name="barcode_scanner_torch_on_content_description">Taschenlampe einschalten</string>
+    <string name="barcode_scanner_manual_entry_placeholder">Barcode-Nummer eingeben</string>
+    <string name="barcode_scanner_search_content_description">Suchen</string>
+    <string name="barcode_scanner_permission_required">Kamerazugriff wird benötigt</string>
+    <string name="barcode_scanner_permission_allow">Erlauben</string>
+    <string name="barcode_scanner_close_content_description">Schließen</string>
+    <string name="barcode_scanner_overlay_caption">Barcode in den Rahmen halten</string>
+
+    <!-- OverviewScreen (ui/overview/OverviewScreen.kt) -->
+    <string name="overview_previous_day_content_description">Vorheriger Tag</string>
+    <string name="overview_next_day_content_description">Nächster Tag</string>
+    <string name="overview_empty_state">Noch keine Einträge heute</string>
+    <string name="overview_copy_meal_button">%1$s von Gestern kopieren</string>
+    <string name="overview_macro_protein">Protein</string>
+    <string name="overview_macro_carbs">Kohlenhydrate</string>
+    <string name="overview_macro_fat">Fett</string>
+    <string name="overview_sugar_label">Zucker</string>
+    <string name="overview_fiber_label">Ballaststoffe</string>
+    <string name="overview_salt_label">Salz</string>
+    <string name="overview_kcal_label">KCAL</string>
+    <string name="overview_kcal_remaining">noch %1$d</string>
+    <string name="overview_kcal_over">+%1$d zuviel</string>
+    <string name="overview_kcal_goal_reached">Ziel erreicht</string>
+    <string name="overview_clean_percent">%1$d %% CLEAN</string>
+    <string name="overview_weight_dialog_title">Gewicht eintragen</string>
+    <string name="overview_weight_today_label">Gewicht heute</string>
+
+    <!-- Shared workout-module strings (ui/workout/ExercisePicker.kt, reused across screens) -->
+    <string name="workout_add_exercise_button">Übung hinzufügen</string>
+    <string name="workout_add_set_button">Satz hinzufügen</string>
+    <string name="workout_exercise_search_placeholder">Übung suchen</string>
+    <string name="workout_exercise_picker_empty">Keine Übungen gefunden.</string>
+
+    <!-- WorkoutSessionScreen (ui/workout/WorkoutSessionScreen.kt) -->
+    <string name="workout_session_template_update_title">Vorlage aktualisieren?</string>
+    <string name="workout_session_template_update_text">Du hast diese Einheit gegenüber der Vorlage »%1$s« verändert. Sollen die Änderungen (z. B. mehr Sätze oder geänderte Satztypen) für das nächste Mal übernommen werden? Ausgelassene Übungen bleiben erhalten.</string>
+    <string name="workout_session_template_update_confirm">Aktualisieren</string>
+    <string name="workout_session_template_update_dismiss">Beibehalten</string>
+    <string name="workout_session_discard_title">Workout verwerfen?</string>
+    <string name="workout_session_discard_text">Die laufende Einheit wird gelöscht und nicht gespeichert.</string>
+    <string name="workout_session_discard_confirm">Verwerfen</string>
+    <string name="workout_session_title">Workout</string>
+    <string name="workout_session_finish_button">Fertig</string>
+    <string name="workout_session_weight_caption_added">ZUSATZ</string>
+    <string name="workout_session_weight_caption_kg">KG</string>
+    <string name="workout_session_remove_exercise_content_description">Übung entfernen</string>
+    <string name="workout_session_set_number_caption">SATZ</string>
+    <string name="workout_session_reps_caption">WDH</string>
+    <string name="workout_session_volume_label">VOLUMEN</string>
+    <string name="workout_session_drag_handle_content_description">Ziehen zum Verschieben</string>
+    <string name="workout_session_set_completed_content_description">Satz erledigt</string>
+    <string name="workout_session_set_open_content_description">Satz offen</string>
+    <string name="workout_session_delete_set_content_description">Satz löschen</string>
+    <string name="workout_session_empty_hint">Noch keine Übungen — füge welche über den Button unten hinzu.</string>
+    <string name="workout_session_rest_paused_label">PAUSE PAUSIERT</string>
+    <string name="workout_session_rest_label">PAUSE</string>
+    <string name="workout_session_rest_resume_content_description">Fortsetzen</string>
+    <string name="workout_session_rest_pause_content_description">Pausieren</string>
+    <string name="workout_session_rest_skip_content_description">Überspringen</string>
+
+    <!-- TemplatesScreen (ui/workout/TemplatesScreen.kt) -->
+    <string name="templates_title">Training</string>
+    <string name="templates_history_content_description">Verlauf</string>
+    <string name="templates_new_template_content_description">Neue Vorlage</string>
+    <string name="templates_catalog_content_description">Übungskatalog</string>
+    <string name="templates_start_workout_button">Workout starten</string>
+    <string name="templates_active_session_title">Laufende Einheit</string>
+    <string name="templates_active_session_subtitle">Tippen zum Fortsetzen</string>
+    <string name="templates_drag_handle_content_description">Verschieben</string>
+    <string name="templates_empty_title">Noch keine Vorlagen</string>
+    <string name="templates_empty_body">Lege über das Plus-Symbol eine Workout-Vorlage an — oder starte direkt ein freies Workout.</string>
+    <string name="templates_deleted_message">Vorlage gelöscht</string>
+    <string name="templates_never_trained">Noch nie trainiert</string>
+
+    <!-- Shared goal-editor fields (ui/goals/GoalFields.kt content, used by SettingsScreen + OnboardingScreen) -->
+    <string name="goals_section_header">Tagesziele</string>
+    <string name="goals_body_weight_label">Körpergewicht (kg)</string>
+    <string name="goals_body_weight_apply_button">Übernehmen</string>
+    <string name="goals_recommendation">Empfehlung: %1$dg Protein · %2$dg Fett · Rest mit Kohlenhydraten auffüllen</string>
+    <string name="goals_macros_calories_header">Makros &amp; Kalorien</string>
+    <string name="goals_protein_label">Protein (g)</string>
+    <string name="goals_protein_supporting_text">Empfehlung: 2,2g pro kg Körpergewicht</string>
+    <string name="goals_fat_label">Fett (g)</string>
+    <string name="goals_fat_supporting_text">Empfehlung: 1g pro kg Körpergewicht</string>
+    <string name="goals_carbs_label">Kohlenhydrate (g)</string>
+    <string name="goals_carbs_calc_button">Aus kcal &amp; Makros berechnen (→ %1$dg)</string>
+    <string name="goals_kcal_label">Kalorien (kcal)</string>
+    <string name="goals_kcal_calc_button">Aus Makros berechnen (→ %1$d kcal)</string>
+    <string name="goals_warning_title">Kalorien stimmen nicht mit Makros überein</string>
+    <string name="goals_warning_detail">Makros ergeben %1$d kcal (%2$s%3$d kcal Unterschied)</string>
+    <string name="goals_target_weight_label">Zielgewicht (kg)</string>
+    <string name="goals_target_weight_supporting_text">Optional — wird in der Gewichtsstatistik als Linie angezeigt</string>
+    <string name="goals_saved_message">Ziele gespeichert</string>
+
+    <!-- SettingsScreen (ui/settings/SettingsScreen.kt) -->
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_data_section_header">Daten</string>
+    <string name="settings_support_section_header">Unterstützung</string>
+    <string name="settings_version_footer">Version %1$s</string>
+    <string name="settings_export_button">Vollständiges Backup exportieren</string>
+    <string name="settings_export_chooser_title">Exportieren via</string>
+    <string name="settings_import_button">Backup importieren</string>
+    <string name="settings_reminder_title">Tägliche Erinnerung</string>
+    <string name="settings_reminder_description">Wenn du bis 17 Uhr noch keine Mahlzeit eingetragen hast, schickt dir die App eine kurze Erinnerung.</string>
+    <string name="settings_donation_title">Gefällt dir Trainist?</string>
+    <string name="settings_donation_body">Die App wird von einer einzelnen Person in der Freizeit entwickelt. Wenn sie dir hilft, freue ich mich über einen Kaffee.</string>
+    <string name="settings_donation_cta">Kaffee spendieren</string>
+    <string name="settings_contact_developer_button">Entwickler kontaktieren</string>
+    <string name="settings_contact_email_subject">Trainist Feedback</string>
+
+    <!-- Backup export/import result messages (ui/data/DataViewModel.kt) — resolved via
+         context.getString() in ui/data/DataMessageFormat.kt, not stringResource() (ViewModels
+         have no Compose context). -->
+    <string name="data_export_failed">Export fehlgeschlagen: %1$s</string>
+    <string name="data_import_failed">Import fehlgeschlagen: %1$s</string>
+    <string name="data_import_nothing">Nichts importiert</string>
+    <string name="data_import_food_entries">%1$d Lebensmitteleinträge</string>
+    <string name="data_import_food_skipped">(%1$d übersprungen)</string>
+    <string name="data_import_weight_entries">%1$d Gewichtseinträge</string>
+    <string name="data_import_goal_restored">Ziele wiederhergestellt</string>
+    <string name="data_import_custom_foods">%1$d eigene Lebensmittel</string>
+    <string name="data_import_exercises">%1$d eigene Übungen</string>
+    <string name="data_import_templates">%1$d Vorlagen</string>
+    <string name="data_import_sessions">%1$d Einheiten</string>
+
+    <!-- ExerciseCatalogScreen (ui/workout/ExerciseCatalogScreen.kt) -->
+    <string name="exercise_catalog_title">Übungen</string>
+    <string name="exercise_catalog_create_content_description">Eigene Übung anlegen</string>
+    <string name="exercise_catalog_muscle_filter_label">MUSKEL</string>
+    <string name="exercise_catalog_equipment_filter_label">EQUIPMENT</string>
+    <string name="exercise_catalog_deleted_message">Übung gelöscht</string>
+    <string name="exercise_catalog_clear_search_content_description">Suche löschen</string>
+    <string name="exercise_catalog_readonly_content_description">Katalog-Übung (schreibgeschützt)</string>
+    <string name="exercise_editor_title_new">Neue Übung</string>
+    <string name="exercise_editor_title_edit">Übung bearbeiten</string>
+    <string name="exercise_editor_type_label">TYP</string>
+    <string name="exercise_editor_muscles_field">Muskeln (Komma-getrennt)</string>
+    <string name="exercise_editor_equipment_field">Equipment</string>
+    <string name="exercise_editor_mechanic_label">MECHANIK</string>
+    <string name="exercise_editor_instructions_field">Anleitung (eine Zeile pro Schritt)</string>
+
+    <!-- TemplateEditorScreen (ui/workout/TemplateEditorScreen.kt) -->
+    <string name="template_editor_title_new">Neue Vorlage</string>
+    <string name="template_editor_title_edit">Vorlage bearbeiten</string>
+    <string name="template_editor_name_label">Name</string>
+    <string name="template_editor_name_placeholder">z. B. Push Day</string>
+    <string name="template_editor_exercises_header">ÜBUNGEN</string>
+    <string name="template_editor_empty_hint">Noch keine Übungen — füge welche aus dem Katalog hinzu.</string>
+    <string name="template_editor_remove_set_content_description">Satz entfernen</string>
+    <string name="template_editor_add_set_short_label">Satz</string>
+
+    <!-- StatsScreen (ui/stats/StatsScreen.kt, ui/stats/StatsViewModel.kt) -->
+    <string name="stats_title">Statistik</string>
+    <string name="stats_time_range_week">7 Tage</string>
+    <string name="stats_time_range_month">30 Tage</string>
+    <string name="stats_time_range_year">1 Jahr</string>
+    <string name="stats_card_calories">Kalorien</string>
+    <string name="stats_card_clean_eating">Clean-Ernährung</string>
+    <string name="stats_card_weight">Gewicht</string>
+    <string name="stats_card_training_frequency">Trainingsfrequenz</string>
+    <string name="stats_card_strength">Kraftverlauf</string>
+    <string name="stats_empty_calories">Noch keine Einträge</string>
+    <string name="stats_empty_clean_eating">Noch keine getaggten Einträge</string>
+    <string name="stats_empty_weight">Noch keine Gewichtsdaten</string>
+    <string name="stats_empty_frequency">Noch keine Einheiten</string>
+    <string name="stats_empty_strength">Noch keine Trainingsdaten</string>
+    <string name="stats_empty_strength_exercise">Für diese Übung keine Daten im Zeitraum</string>
+    <string name="stats_clean_average">Ø %1$d %%</string>
+    <string name="stats_weight_current">Aktuell</string>
+    <string name="stats_weight_change">Veränderung</string>
+    <string name="stats_weight_target">Ziel</string>
+
+    <!-- OnboardingScreen (ui/onboarding/OnboardingScreen.kt) -->
+    <string name="onboarding_welcome_prefix">Willkommen bei</string>
+    <string name="onboarding_welcome_question">Wie möchtest du starten?</string>
+    <string name="onboarding_quickstart_title">Schnellstart</string>
+    <string name="onboarding_quickstart_subtitle">Ein vorhandenes Backup importieren und direkt loslegen.</string>
+    <string name="onboarding_start_empty_title">Einfach loslegen</string>
+    <string name="onboarding_start_empty_subtitle">Mit einer leeren App beginnen — Ziele kannst du jederzeit später setzen.</string>
+    <string name="onboarding_setup_goals_title">Ziele einrichten</string>
+    <string name="onboarding_setup_goals_subtitle">Ein kurzer Guide: Zielgewicht und deine Tagesziele festlegen.</string>
+    <string name="onboarding_guide_skip_button">Überspringen</string>
+    <string name="onboarding_guide_hint">Diese Werte kannst du jederzeit in den Einstellungen anpassen.</string>
+    <string name="onboarding_guide_save_button">Speichern &amp; loslegen</string>
+
+    <!-- WorkoutHistoryScreen (ui/workout/WorkoutHistoryScreen.kt) -->
+    <string name="workout_history_title">Verlauf</string>
+    <string name="workout_history_previous_month_content_description">Vorheriger Monat</string>
+    <string name="workout_history_next_month_content_description">Nächster Monat</string>
+    <string name="workout_history_empty_day">Kein Training an diesem Tag.</string>
+    <string name="workout_history_session_caption">EINHEIT</string>
+    <string name="workout_history_session_volume">Volumen %1$s kg</string>
+    <string name="workout_history_delete_session_content_description">Einheit löschen</string>
+    <string name="workout_history_session_deleted_message">Einheit gelöscht</string>
+
+    <!-- AppNavigation (ui/navigation/AppNavigation.kt) -->
+    <string name="nav_overview_label">Ernährung</string>
+
+    <!-- ExerciseDetailScreen (ui/workout/ExerciseDetailScreen.kt) -->
+    <string name="exercise_detail_title_fallback">Übung</string>
+    <string name="exercise_detail_strength_header">KRAFTVERLAUF</string>
+    <string name="exercise_detail_strength_empty">Noch nicht genug Daten für einen Verlauf.</string>
+    <string name="exercise_detail_metadata_header">ÜBUNG</string>
+    <string name="exercise_detail_muscles_label">MUSKELN</string>
+    <string name="exercise_detail_category_label">KATEGORIE</string>
+    <string name="exercise_detail_instructions_label">ANLEITUNG</string>
+    <string name="exercise_detail_pr_label">PERSÖNLICHER REKORD</string>
+    <string name="exercise_detail_history_header">VERLAUF</string>
+    <string name="exercise_detail_history_empty">Diese Übung wurde noch nicht trainiert.</string>
+
+    <!-- MacroWidget (widget/MacroWidget.kt) — a Glance app widget, resolved via context.getString()
+         (Glance's own LocalContext, not the regular Compose UI LocalContext stringResource() needs). -->
+    <string name="widget_open_button">Öffnen →</string>
+    <string name="widget_kcal_remaining">%1$d kcal noch</string>
+    <string name="widget_kcal_over_goal">+%1$d kcal über Ziel</string>
+    <string name="widget_macro_protein_letter">P</string>
+    <string name="widget_macro_carbs_letter">K</string>
+    <string name="widget_macro_fat_letter">F</string>
+
+    <!-- Language picker (ui/settings/SettingsScreen.kt, ui/settings/LanguageViewModel.kt) -->
+    <string name="settings_language_section_header">Sprache</string>
+    <string name="settings_language_system">Systemsprache</string>
+    <string name="settings_language_german">Deutsch</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_picker_title">Sprache wählen</string>
 </resources>

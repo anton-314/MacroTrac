@@ -17,6 +17,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import dev.antonlammers.trainist.MainActivity
 import dev.antonlammers.trainist.R
+import dev.antonlammers.trainist.ui.util.currentAppLocale
 
 /**
  * Builds and posts the rest-timer notifications, all under one notification id so each state
@@ -65,7 +66,10 @@ object RestTimerNotifier {
         val chronometerBase = SystemClock.elapsedRealtime() + (endAtMs - System.currentTimeMillis())
         val textColor = notificationTextColor(context)
         val content = RemoteViews(context.packageName, R.layout.notification_rest_timer).apply {
-            setTextViewText(R.id.rest_title, "Satzpause · $exerciseName")
+            setTextViewText(
+                R.id.rest_title,
+                context.getString(R.string.rest_timer_ongoing_title, exerciseName),
+            )
             setViewVisibility(R.id.rest_chronometer, View.VISIBLE)
             setViewVisibility(R.id.rest_time_static, View.GONE)
             setChronometer(R.id.rest_chronometer, chronometerBase, null, true)
@@ -80,7 +84,10 @@ object RestTimerNotifier {
     fun showPaused(context: Context, exerciseName: String, remainingSeconds: Int) {
         val textColor = notificationTextColor(context)
         val content = RemoteViews(context.packageName, R.layout.notification_rest_timer).apply {
-            setTextViewText(R.id.rest_title, "Pausiert · $exerciseName")
+            setTextViewText(
+                R.id.rest_title,
+                context.getString(R.string.rest_timer_paused_title, exerciseName),
+            )
             setViewVisibility(R.id.rest_chronometer, View.GONE)
             setViewVisibility(R.id.rest_time_static, View.VISIBLE)
             setTextViewText(R.id.rest_time_static, formatMmSs(remainingSeconds))
@@ -120,17 +127,17 @@ object RestTimerNotifier {
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID_ONGOING)
         return NotificationCompat.Builder(context, CHANNEL_ALERT_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Pause vorbei")
-            .setContentText("Zeit für den nächsten Satz.")
+            .setContentTitle(context.getString(R.string.rest_timer_expired_title))
+            .setContentText(context.getString(R.string.rest_timer_expired_text))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setContentIntent(openWorkoutPendingIntent(context))
-            // Explicit "Stoppen" action + swipe-to-dismiss both silence the alert immediately — the
-            // sound/vibration otherwise only stop on their own after RestTimerAlertService's short cap.
+            // Explicit "Stoppen"/"Stop" action + swipe-to-dismiss both silence the alert immediately —
+            // the sound/vibration otherwise only stop on their own after RestTimerAlertService's short cap.
             .addAction(
                 NotificationCompat.Action.Builder(
                     R.drawable.ic_notification,
-                    "Stoppen",
+                    context.getString(R.string.common_stop),
                     stopAlertPendingIntent(context),
                 ).build(),
             )
@@ -179,7 +186,7 @@ object RestTimerNotifier {
 
     private fun formatMmSs(totalSeconds: Int): String {
         val safe = totalSeconds.coerceAtLeast(0)
-        return "%d:%02d".format(safe / 60, safe % 60)
+        return "%d:%02d".format(currentAppLocale(), safe / 60, safe % 60)
     }
 
     private fun ensureChannels(context: Context) {
@@ -188,10 +195,10 @@ object RestTimerNotifier {
             manager.createNotificationChannel(
                 NotificationChannel(
                     CHANNEL_ONGOING_ID,
-                    "Ruhe-Timer (Status)",
+                    context.getString(R.string.rest_timer_channel_ongoing_name),
                     NotificationManager.IMPORTANCE_LOW,
                 ).apply {
-                    description = "Zeigt die laufende Satzpause an, solange sie läuft."
+                    description = context.getString(R.string.rest_timer_channel_ongoing_description)
                     enableVibration(false)
                     setSound(null, null)
                 },
@@ -199,10 +206,10 @@ object RestTimerNotifier {
             manager.createNotificationChannel(
                 NotificationChannel(
                     CHANNEL_ALERT_ID,
-                    "Ruhe-Timer",
+                    context.getString(R.string.rest_timer_channel_alert_name),
                     NotificationManager.IMPORTANCE_HIGH,
                 ).apply {
-                    description = "Meldet, wenn die Satzpause abgelaufen ist."
+                    description = context.getString(R.string.rest_timer_channel_alert_description)
                     // Silent: RestTimerAlertService plays the actual sound + vibration explicitly on
                     // the alarm stream, which — unlike a channel's own sound — is audible regardless of
                     // ringer/Do Not Disturb settings. HIGH importance still gets the heads-up display.
