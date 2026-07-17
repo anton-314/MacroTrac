@@ -30,8 +30,10 @@ import dev.antonlammers.trainist.ui.util.currentAppLocale
  *   via the frozen mm:ss text.
  * - [buildExpiredNotification]: the alerting "rest over" notification, posted by
  *   [RestTimerAlertService] via `startForeground` rather than here directly — the actual alert
- *   sound + vibration are played by that service as real alarm-stream audio (see its doc), not as
- *   the notification's own sound/vibration, which is silenced by ringer/Do Not Disturb settings.
+ *   sound + vibration are played by that service on the media stream (see its doc), so this
+ *   notification itself is posted silent.
+ * - [postExpiredFallback]: the same "rest over" notification for the background-alarm path when the
+ *   service may not be started (Android 12+); audible via the alert channel's own sound + vibration.
  *
  * Tapping any of them opens the app straight into the live workout session (spec addendum).
  */
@@ -41,12 +43,13 @@ object RestTimerNotifier {
     const val EXTRA_OPEN_WORKOUT_SESSION = "open_workout_session"
 
     private const val CHANNEL_ONGOING_ID = "rest_timer_ongoing"
-    // Bumped from the legacy "rest_timer" id, then again from "rest_timer_alert": a notification
-    // channel's importance/sound/vibration are immutable once created. This channel used to carry its
-    // own sound + vibration; now RestTimerAlertService plays both explicitly on the alarm stream (audible
-    // even in silent/Do Not Disturb, unlike a notification sound), so the channel must be silent to avoid
-    // a double alert — which requires yet another fresh id for users upgrading from the old channel.
-    private const val CHANNEL_ALERT_ID = "rest_timer_alert_v2"
+    // Bumped from "rest_timer" → "rest_timer_alert" → "..._v2" → "..._v3": a notification channel's
+    // importance/sound/vibration are immutable once created, so every sound-config change needs a
+    // fresh id. v3 carries the default notification sound + vibration again — needed by the
+    // background fallback path (postExpiredFallback), which has no service playing audio for it.
+    // The foreground path posts on the same channel but per-notification silent (setSilent), because
+    // there RestTimerAlertService plays sound + vibration itself on the media stream.
+    private const val CHANNEL_ALERT_ID = "rest_timer_alert_v3"
     // The ongoing/paused countdown and the "rest over" alert use SEPARATE notification ids on purpose:
     // Android will not move an already-posted notification to a different channel on update, so posting
     // the HIGH-channel alert under the ongoing notification's id would leave it stuck on the silent LOW
@@ -117,21 +120,17 @@ object RestTimerNotifier {
 
     /**
      * Rest is over: dismisses the ongoing countdown and builds the alerting notification for
-     * [RestTimerAlertService] to post via `startForeground` (ensures channels exist first). The
-     * notification itself carries no sound/vibration — the service plays both explicitly.
+     * [RestTimerAlertService] to post via `startForeground` (ensures channels exist first). Posted
+     * per-notification silent ([NotificationCompat.Builder.setSilent]) — the service plays sound +
+     * vibration itself on the media stream, and the channel's own sound must not double it.
      */
     fun buildExpiredNotification(context: Context): android.app.Notification {
         ensureChannels(context)
         // Cancel the silent ongoing notification first; the alert is a NEW notification (own id) so it
         // lands on the HIGH channel and shows a heads-up instead of inheriting the LOW channel.
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID_ONGOING)
-        return NotificationCompat.Builder(context, CHANNEL_ALERT_ID)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(R.string.rest_timer_expired_title))
-            .setContentText(context.getString(R.string.rest_timer_expired_text))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setContentIntent(openWorkoutPendingIntent(context))
+        return expiredBuilder(context)
+            .setSilent(true)
             // Explicit "Stoppen"/"Stop" action + swipe-to-dismiss both silence the alert immediately —
             // the sound/vibration otherwise only stop on their own after RestTimerAlertService's short cap.
             .addAction(
@@ -142,9 +141,37 @@ object RestTimerNotifier {
                 ).build(),
             )
             .setDeleteIntent(stopAlertPendingIntent(context))
-            .setAutoCancel(true)
             .build()
     }
+
+    /**
+     * Background fallback when [RestTimerAlertService] may not be started (foreground-service start
+     * from the background, Android 12+): posts the same "rest over" notification, but audible via
+     * the channel's own sound + vibration instead of the service's media-stream playback. No
+     * "Stoppen" action — there is no playing service to stop; the channel sound ends on its own.
+     */
+    fun postExpiredFallback(context: Context) {
+        ensureChannels(context)
+        NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID_ONGOING)
+        post(
+            context,
+            NOTIFICATION_ID_ALERT,
+            expiredBuilder(context)
+                // Pre-O fallback for the channel's sound/vibration config (channels exist from O on).
+                .setDefaults(NotificationCompat.DEFAULT_SOUND or NotificationCompat.DEFAULT_VIBRATE)
+                .build(),
+        )
+    }
+
+    private fun expiredBuilder(context: Context) =
+        NotificationCompat.Builder(context, CHANNEL_ALERT_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.rest_timer_expired_title))
+            .setContentText(context.getString(R.string.rest_timer_expired_text))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setContentIntent(openWorkoutPendingIntent(context))
+            .setAutoCancel(true)
 
     /** Dismisses whichever rest-timer notification is currently showing and stops any playing alert
      * (skip/finish/discard/pause, or a new rest starting while a previous alert is still sounding). */
@@ -210,11 +237,10 @@ object RestTimerNotifier {
                     NotificationManager.IMPORTANCE_HIGH,
                 ).apply {
                     description = context.getString(R.string.rest_timer_channel_alert_description)
-                    // Silent: RestTimerAlertService plays the actual sound + vibration explicitly on
-                    // the alarm stream, which — unlike a channel's own sound — is audible regardless of
-                    // ringer/Do Not Disturb settings. HIGH importance still gets the heads-up display.
-                    enableVibration(false)
-                    setSound(null, null)
+                    // Default sound + vibration stay ON: the background fallback notification relies
+                    // on them. The foreground path suppresses them per-notification via setSilent
+                    // (RestTimerAlertService plays its own media-stream sound + vibration there).
+                    enableVibration(true)
                 },
             )
         }

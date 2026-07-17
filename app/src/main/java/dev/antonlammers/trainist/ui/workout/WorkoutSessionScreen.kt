@@ -63,6 +63,7 @@ import dev.antonlammers.trainist.R
 import dev.antonlammers.trainist.domain.model.ExerciseType
 import dev.antonlammers.trainist.domain.model.SetEntry
 import dev.antonlammers.trainist.domain.model.SetType
+import dev.antonlammers.trainist.notification.RestTimerAlertService
 import dev.antonlammers.trainist.notification.RestTimerNotifier
 import dev.antonlammers.trainist.notification.RestTimerScheduler
 import dev.antonlammers.trainist.ui.components.DragReorderColumn
@@ -94,7 +95,7 @@ fun WorkoutSessionScreen(
         if (finished) navController.popBackStack()
     }
 
-    // The VM stays Android-free: it emits schedule/cancel commands, executed here against WorkManager.
+    // The VM stays Android-free: it emits schedule/cancel commands, executed here against AlarmManager.
     val context = LocalContext.current
     LaunchedEffect(Unit) {
         viewModel.restCommands.collect { command ->
@@ -113,6 +114,13 @@ fun WorkoutSessionScreen(
                 RestCommand.Cancel -> {
                     RestTimerScheduler.cancel(context)
                     RestTimerNotifier.cancel(context)
+                }
+                RestCommand.Expired -> {
+                    // The countdown crossed zero while visible: play the alert now (a foreground app may
+                    // always start the service) and drop the redundant background alarm. If the start is
+                    // rejected (app just left the foreground), keep the alarm — the receiver's fallback
+                    // path still delivers the alert.
+                    if (RestTimerAlertService.tryStart(context)) RestTimerScheduler.cancel(context)
                 }
             }
         }

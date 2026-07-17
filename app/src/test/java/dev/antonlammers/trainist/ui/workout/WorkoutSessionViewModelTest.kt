@@ -22,8 +22,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -387,6 +389,42 @@ class WorkoutSessionViewModelTest {
             assertEquals(RestCommand.Cancel, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `a countdown observed crossing zero emits Expired and clears the timer`() = runTest {
+        var now = FIXED_CLOCK
+        val vm = WorkoutSessionViewModel(sessions, templates, catalog, weight, 0L) { now }
+        vm.startedWithOneExercise(this)
+        subscribe(vm.restTimer)
+        vm.restCommands.test {
+            vm.toggleSetCompleted(0, 0)
+            assertEquals(RestCommand.Start("bench", 180, 180_000, FIXED_CLOCK + 180_000), awaitItem())
+            runCurrent() // first tick observes the countdown still running
+            now = FIXED_CLOCK + 181_000 // wall clock passes the end...
+            advanceTimeBy(1_100) // ...and the next tick sees the expiry
+            assertEquals(RestCommand.Expired, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertNull(vm.restTimer.value)
+        assertNull(sessions.activeSession().first()!!.restExerciseStableId)
+    }
+
+    @Test
+    fun `a timer already expired when the countdown becomes visible emits no Expired`() = runTest {
+        var now = FIXED_CLOCK
+        val vm = WorkoutSessionViewModel(sessions, templates, catalog, weight, 0L) { now }
+        vm.startedWithOneExercise(this)
+        vm.restCommands.test {
+            vm.toggleSetCompleted(0, 0)
+            assertEquals(RestCommand.Start("bench", 180, 180_000, FIXED_CLOCK + 180_000), awaitItem())
+            now = FIXED_CLOCK + 181_000 // expires before anyone observes the countdown...
+            subscribe(vm.restTimer) // ...then the ticking starts: first value is already <= 0
+            advanceTimeBy(2_000)
+            expectNoEvents() // the background alarm owns this expiry — no in-app alert
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertNull(vm.restTimer.value)
     }
 
     // --- rest timer survives leaving/resuming the session (persisted anchor) ---

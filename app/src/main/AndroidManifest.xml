@@ -5,15 +5,13 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Rest-timer alert must fire precisely even while the device is idle/locked. USE_EXACT_ALARM is
-         auto-granted for alarm/timer apps (API 33+); SCHEDULE_EXACT_ALARM covers 31–32. -->
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-    <uses-permission
-        android:name="android.permission.SCHEDULE_EXACT_ALARM"
-        android:maxSdkVersion="32" />
-    <!-- The rest-over alert plays real alarm-stream audio + vibrates directly (RestTimerAlertService),
-         instead of relying on a notification's own sound/vibration, which is muted by ringer/Do Not
-         Disturb settings. -->
+    <!-- Deliberately NO exact-alarm permissions (USE_EXACT_ALARM / SCHEDULE_EXACT_ALARM): Play policy
+         restricts them to apps whose core functionality is an alarm clock/timer/calendar. The rest-over
+         alert is instead fired in-app when the foreground countdown reaches zero (the dominant case),
+         with an inexact allow-while-idle alarm as background fallback — see RestTimerScheduler. -->
+    <!-- The in-app/foreground rest-over alert plays media-stream audio + vibrates directly
+         (RestTimerAlertService); the background fallback relies on the alert channel's own
+         notification sound. -->
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

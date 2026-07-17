@@ -83,17 +83,21 @@ data class RestTimerUiState(
 private data class ActiveRest(val exerciseStableId: String, val exerciseName: String, val timer: RestTimer)
 
 /**
- * One-shot command the screen turns into WorkManager scheduling + the Android notification (keeps
+ * One-shot command the screen turns into alarm scheduling + the Android notification (keeps
  * the VM Android-free). [Start] covers both starting and resuming a running countdown: the screen
- * (re)schedules the alerting "rest over" notification for [delayMs] from now and shows/updates the
+ * (re)schedules the background-fallback alarm for [delayMs] from now and shows/updates the
  * ongoing "still resting" notification counting down to [endAtMs]. [Pause] freezes both: the pending
- * alert is cancelled and the ongoing notification switches to a static "paused" display. [Cancel]
- * stops everything (skip/finish/discard) — cancels the pending alert and dismisses the notification.
+ * alarm is cancelled and the ongoing notification switches to a static "paused" display. [Cancel]
+ * stops everything (skip/finish/discard) — cancels the pending alarm and dismisses the notification.
+ * [Expired] fires when the ticking countdown is *observed* crossing zero (screen in the foreground):
+ * the screen plays the full alert immediately (foreground-service start is allowed there) and, on
+ * success, cancels the now-redundant background alarm.
  */
 sealed interface RestCommand {
     data class Start(val exerciseName: String, val totalSeconds: Int, val delayMs: Long, val endAtMs: Long) : RestCommand
     data class Pause(val exerciseName: String, val remainingSeconds: Int) : RestCommand
     data object Cancel : RestCommand
+    data object Expired : RestCommand
 }
 
 /**
@@ -153,14 +157,16 @@ class WorkoutSessionViewModel(
 
     private val _rest = MutableStateFlow<ActiveRest?>(null)
 
-    // One-shot WorkManager schedule/cancel commands; the screen (which has a Context) executes them.
+    // One-shot alarm-schedule/notification commands; the screen (which has a Context) executes them.
     private val restCommandChannel = Channel<RestCommand>(Channel.BUFFERED)
     val restCommands: Flow<RestCommand> = restCommandChannel.receiveAsFlow()
 
     /**
      * The running rest timer, ticked once a second from the wall clock. Emits null when idle and
-     * auto-clears itself when the countdown reaches zero (the background notification, if any, is
-     * left to fire on its own — a finish must not cancel it).
+     * auto-clears itself when the countdown reaches zero. A countdown *observed* crossing zero (a
+     * previous tick was still positive) additionally emits [RestCommand.Expired], which the screen
+     * turns into the immediate in-app alert. A timer that is already expired on (re)subscription
+     * emits no alert — that expiry happened out of sight and belongs to the background alarm.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val restTimer: StateFlow<RestTimerUiState?> = _rest.flatMapLatest { active ->
@@ -168,10 +174,15 @@ class WorkoutSessionViewModel(
             active == null -> flowOf(null)
             active.timer.isPaused -> flowOf(active.toUi(active.timer.remainingMs(clock())))
             else -> flow {
+                var observedRunning = false
                 while (true) {
                     val remainingMs = active.timer.remainingMs(clock())
                     emit(active.toUi(remainingMs))
-                    if (remainingMs <= 0L) break
+                    if (remainingMs <= 0L) {
+                        if (observedRunning) restCommandChannel.trySend(RestCommand.Expired)
+                        break
+                    }
+                    observedRunning = true
                     delay(TICK_MS)
                 }
                 _rest.value = null
