@@ -1,6 +1,7 @@
 package dev.antonlammers.trainist.notification
 
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
@@ -15,14 +16,16 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 
 /**
- * Plays the rest-over alert as real alarm-stream audio + direct vibration, independent of the
- * notification's own sound/vibration — a notification's sound plays on the "notification" audio
- * stream and is silenced by ringer/Do Not Disturb settings, which is exactly what made the alert
- * unreliable before this. [AudioAttributes.USAGE_ALARM] plays on the alarm stream instead (the same
- * one a phone's own alarm clock uses — normally exempt from silent mode, audible over headphones like
- * any other audio) and [Vibrator.vibrate] is called directly rather than via a notification channel.
+ * Plays the rest-over alert as **media-stream** audio + direct vibration.
+ * [AudioAttributes.USAGE_MEDIA] plays on the media stream — the deliberate choice here: the alert
+ * behaves like any other app audio (media volume, audible over headphones), rather than hijacking
+ * the alarm stream, which fits an app that holds no alarm permissions. The vibration is triggered
+ * directly via [Vibrator.vibrate] rather than through a notification channel, and the accompanying
+ * heads-up notification is posted silent ([RestTimerNotifier.buildExpiredNotification]) so channel
+ * sound and player never double up.
  *
  * The alert is a short **notification-style chime** — [RingtoneManager.TYPE_NOTIFICATION], not
  * [RingtoneManager.TYPE_ALARM] — since the latter is the user's own configured alarm-clock tone,
@@ -32,9 +35,12 @@ import androidx.core.app.ServiceCompat
  * immediately: tapping the notification's "Stoppen" action (or swiping it away, or opening the app,
  * see [RestTimerNotifier.buildExpiredNotification] / `MainActivity`) sends [ACTION_STOP].
  *
- * Runs as a short-lived foreground service — started from [RestTimerAlarmReceiver] in response to an
- * exact alarm, one of Android's documented background foreground-service-start exemptions — so
- * playback reliably survives with the screen off/locked and the app process not otherwise running.
+ * Runs as a short-lived foreground service so playback reliably finishes even with the screen
+ * off/locked. Started via [tryStart] from the session screen when the in-app countdown crosses zero
+ * (app in the foreground — always allowed), or from [RestTimerAlarmReceiver]'s background-fallback
+ * alarm, where the start can be rejected on Android 12+ (no exact alarm = no foreground-service
+ * start exemption) — [tryStart] reports that so the receiver can fall back to a sounding
+ * notification.
  */
 class RestTimerAlertService : Service() {
 
@@ -89,7 +95,7 @@ class RestTimerAlertService : Service() {
         player = MediaPlayer().apply {
             setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build(),
             )
@@ -127,6 +133,21 @@ class RestTimerAlertService : Service() {
     companion object {
         /** Sent as the [Intent.getAction] to silence an in-progress alert immediately. */
         const val ACTION_STOP = "dev.antonlammers.trainist.action.STOP_REST_ALERT"
+
+        /**
+         * Starts the alert as a foreground service; returns false when Android rejects the start
+         * because the app is in the background (Android 12+ restriction — possible on the inexact
+         * background-alarm path, never on the in-app expiry path). Callers use the result to decide
+         * whether a fallback notification is needed instead.
+         */
+        fun tryStart(context: Context): Boolean = try {
+            ContextCompat.startForegroundService(context, Intent(context, RestTimerAlertService::class.java))
+            true
+        } catch (e: IllegalStateException) {
+            // ForegroundServiceStartNotAllowedException (API 31+) extends IllegalStateException;
+            // catching the base type keeps this safe to verify on every API level.
+            false
+        }
 
         // The alert is meant to be a short cue, not a ringing alarm — always stop after this long,
         // regardless of the resolved tone's actual length.
