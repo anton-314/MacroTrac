@@ -44,7 +44,7 @@ class DataViewModel @Inject constructor(
                     onUri(uri)
                 }
                 .onFailure { e ->
-                    _uiState.update { it.copy(isLoading = false, message = "Export fehlgeschlagen: ${e.message}") }
+                    _uiState.update { it.copy(isLoading = false, message = DataMessage.ExportFailed(e.message)) }
                 }
         }
     }
@@ -59,23 +59,21 @@ class DataViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
             runCatching { importer.import(uri) }
                 .onSuccess { result ->
-                    val parts = buildList {
-                        val food = "${result.foodImported} Lebensmitteleinträge" +
-                            if (result.foodSkipped > 0) " (${result.foodSkipped} übersprungen)" else ""
-                        if (result.foodImported > 0 || result.foodSkipped > 0) add(food)
-                        if (result.weightImported > 0) add("${result.weightImported} Gewichtseinträge")
-                        if (result.goalRestored) add("Ziele wiederhergestellt")
-                        if (result.customFoodsImported > 0) add("${result.customFoodsImported} eigene Lebensmittel")
-                        if (result.exercisesImported > 0) add("${result.exercisesImported} eigene Übungen")
-                        if (result.templatesImported > 0) add("${result.templatesImported} Vorlagen")
-                        if (result.sessionsImported > 0) add("${result.sessionsImported} Einheiten")
-                    }
-                    val msg = if (parts.isEmpty()) "Nichts importiert" else parts.joinToString(", ")
-                    _uiState.update { it.copy(isLoading = false, message = msg) }
+                    val message = DataMessage.ImportResult(
+                        foodImported = result.foodImported,
+                        foodSkipped = result.foodSkipped,
+                        weightImported = result.weightImported,
+                        goalRestored = result.goalRestored,
+                        customFoodsImported = result.customFoodsImported,
+                        exercisesImported = result.exercisesImported,
+                        templatesImported = result.templatesImported,
+                        sessionsImported = result.sessionsImported,
+                    )
+                    _uiState.update { it.copy(isLoading = false, message = message) }
                     onSuccess()
                 }
                 .onFailure { e ->
-                    _uiState.update { it.copy(isLoading = false, message = "Import fehlgeschlagen: ${e.message}") }
+                    _uiState.update { it.copy(isLoading = false, message = DataMessage.ImportFailed(e.message)) }
                 }
         }
     }
@@ -85,6 +83,26 @@ class DataViewModel @Inject constructor(
 
 data class DataUiState(
     val isLoading: Boolean = false,
-    val message: String? = null,
+    val message: DataMessage? = null,
     val reminderEnabled: Boolean = true,
 )
+
+/**
+ * Backup export/import result, kept as structured data rather than a formatted String — the
+ * ViewModel has no Compose context to call `stringResource()`, so the UI layer resolves the
+ * display text (see `DataMessage.toDisplayString()` in `DataMessageFormat.kt`).
+ */
+sealed interface DataMessage {
+    data class ExportFailed(val error: String?) : DataMessage
+    data class ImportFailed(val error: String?) : DataMessage
+    data class ImportResult(
+        val foodImported: Int,
+        val foodSkipped: Int,
+        val weightImported: Int,
+        val goalRestored: Boolean,
+        val customFoodsImported: Int,
+        val exercisesImported: Int,
+        val templatesImported: Int,
+        val sessionsImported: Int,
+    ) : DataMessage
+}

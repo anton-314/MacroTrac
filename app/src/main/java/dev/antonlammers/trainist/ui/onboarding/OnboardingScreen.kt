@@ -68,6 +68,7 @@ import dev.antonlammers.trainist.domain.MacroCalculator
 import dev.antonlammers.trainist.domain.model.DailyGoal
 import dev.antonlammers.trainist.ui.components.NumericTextField
 import dev.antonlammers.trainist.ui.data.DataViewModel
+import dev.antonlammers.trainist.ui.data.toDisplayString
 import dev.antonlammers.trainist.ui.goals.FieldLabel
 import dev.antonlammers.trainist.ui.goals.GoalField
 import dev.antonlammers.trainist.ui.goals.GoalsViewModel
@@ -132,7 +133,7 @@ private fun WelcomeStep(
 
     LaunchedEffect(dataState.message) {
         dataState.message?.let {
-            snackbar.showSnackbar(it)
+            snackbar.showSnackbar(it.toDisplayString(context))
             dataViewModel.clearMessage()
         }
     }

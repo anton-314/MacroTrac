@@ -166,4 +166,55 @@
     <string name="templates_empty_title">No templates yet</string>
     <string name="templates_empty_body">Create a workout template using the plus icon — or just start a free workout.</string>
     <string name="templates_deleted_message">Template deleted</string>
+
+    <!-- Shared goal-editor fields (ui/goals/GoalFields.kt content, used by SettingsScreen + OnboardingScreen) -->
+    <string name="goals_section_header">Daily goals</string>
+    <string name="goals_body_weight_label">Body weight (kg)</string>
+    <string name="goals_body_weight_apply_button">Apply</string>
+    <string name="goals_recommendation">Recommendation: %1$dg protein · %2$dg fat · fill the rest with carbs</string>
+    <string name="goals_macros_calories_header">Macros &amp; Calories</string>
+    <string name="goals_protein_label">Protein (g)</string>
+    <string name="goals_protein_supporting_text">Recommendation: 2.2g per kg of body weight</string>
+    <string name="goals_fat_label">Fat (g)</string>
+    <string name="goals_fat_supporting_text">Recommendation: 1g per kg of body weight</string>
+    <string name="goals_carbs_label">Carbs (g)</string>
+    <string name="goals_carbs_calc_button">Calculate from kcal &amp; macros (→ %1$dg)</string>
+    <string name="goals_kcal_label">Calories (kcal)</string>
+    <string name="goals_kcal_calc_button">Calculate from macros (→ %1$d kcal)</string>
+    <string name="goals_warning_title">Calories don\'t match macros</string>
+    <string name="goals_warning_detail">Macros add up to %1$d kcal (%2$s%3$d kcal difference)</string>
+    <string name="goals_target_weight_label">Target weight (kg)</string>
+    <string name="goals_target_weight_supporting_text">Optional — shown as a line in the weight stats</string>
+    <string name="goals_saved_message">Goals saved</string>
+
+    <!-- SettingsScreen (ui/settings/SettingsScreen.kt) -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_data_section_header">Data</string>
+    <string name="settings_support_section_header">Support</string>
+    <string name="settings_version_footer">Version %1$s</string>
+    <string name="settings_export_button">Export full backup</string>
+    <string name="settings_export_chooser_title">Export via</string>
+    <string name="settings_import_button">Import backup</string>
+    <string name="settings_reminder_title">Daily reminder</string>
+    <string name="settings_reminder_description">If you haven\'t logged a meal by 5 PM, the app sends you a short reminder.</string>
+    <string name="settings_donation_title">Enjoying Trainist?</string>
+    <string name="settings_donation_body">The app is developed by a single person in their spare time. If it helps you, I\'d appreciate a coffee.</string>
+    <string name="settings_donation_cta">Buy me a coffee</string>
+    <string name="settings_contact_developer_button">Contact developer</string>
+    <string name="settings_contact_email_subject">Trainist Feedback</string>
+
+    <!-- Backup export/import result messages (ui/data/DataViewModel.kt) — resolved via
+         context.getString() in ui/data/DataMessageFormat.kt, not stringResource() (ViewModels
+         have no Compose context). -->
+    <string name="data_export_failed">Export failed: %1$s</string>
+    <string name="data_import_failed">Import failed: %1$s</string>
+    <string name="data_import_nothing">Nothing imported</string>
+    <string name="data_import_food_entries">%1$d food entries</string>
+    <string name="data_import_food_skipped">(%1$d skipped)</string>
+    <string name="data_import_weight_entries">%1$d weight entries</string>
+    <string name="data_import_goal_restored">Goals restored</string>
+    <string name="data_import_custom_foods">%1$d custom foods</string>
+    <string name="data_import_exercises">%1$d custom exercises</string>
+    <string name="data_import_templates">%1$d templates</string>
+    <string name="data_import_sessions">%1$d sessions</string>
 </resources>

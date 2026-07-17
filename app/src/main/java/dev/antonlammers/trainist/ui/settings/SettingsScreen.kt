@@ -53,15 +53,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import dev.antonlammers.trainist.BuildConfig
+import dev.antonlammers.trainist.R
 import dev.antonlammers.trainist.domain.MacroCalculator
 import dev.antonlammers.trainist.domain.model.DailyGoal
 import dev.antonlammers.trainist.ui.components.NumericTextField
 import dev.antonlammers.trainist.ui.data.DataViewModel
+import dev.antonlammers.trainist.ui.data.toDisplayString
 import dev.antonlammers.trainist.ui.goals.FieldLabel
 import dev.antonlammers.trainist.ui.goals.GoalField
 import dev.antonlammers.trainist.ui.goals.formatWeight
@@ -88,7 +91,7 @@ fun SettingsScreen(
     val snackbar = remember { SnackbarHostState() }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Einstellungen") }) },
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.settings_title)) }) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(
@@ -102,11 +105,11 @@ fun SettingsScreen(
             GoalsSection(goalsViewModel, snackbar)
 
             HorizontalDivider()
-            SectionHeader("Daten")
+            SectionHeader(stringResource(R.string.settings_data_section_header))
             DataSection(dataViewModel, snackbar)
 
             HorizontalDivider()
-            SectionHeader("Unterstützung")
+            SectionHeader(stringResource(R.string.settings_support_section_header))
             DonationSection()
 
             VersionFooter()
@@ -122,7 +125,7 @@ fun SettingsScreen(
 private fun ColumnScope.VersionFooter() {
     Spacer(Modifier.height(8.dp))
     Text(
-        "Version ${BuildConfig.VERSION_NAME}",
+        stringResource(R.string.settings_version_footer, BuildConfig.VERSION_NAME),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -165,11 +168,11 @@ private fun ColumnScope.GoalsSection(
     val kcalDelta = if (kcalValue != null && calculatedKcal != null)
         MacroCalculator.kcalDelta(kcalValue, proteinValue!!, carbsValue!!, fatValue!!) else null
 
-    SectionHeader("Tagesziele")
+    SectionHeader(stringResource(R.string.goals_section_header))
 
     // Body weight — drives the protein/fat recommendations (not a goal itself).
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        FieldLabel("Körpergewicht (kg)")
+        FieldLabel(stringResource(R.string.goals_body_weight_label))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -188,7 +191,7 @@ private fun ColumnScope.GoalsSection(
                     protein = MacroCalculator.recommendedProteinG(bodyWeightKg).toInt().toString()
                     fat = MacroCalculator.recommendedFatG(bodyWeightKg).toInt().toString()
                 }) {
-                    Text("Übernehmen")
+                    Text(stringResource(R.string.goals_body_weight_apply_button))
                 }
             }
         }
@@ -197,33 +200,33 @@ private fun ColumnScope.GoalsSection(
         val recProtein = MacroCalculator.recommendedProteinG(bodyWeightKg).toInt()
         val recFat = MacroCalculator.recommendedFatG(bodyWeightKg).toInt()
         Text(
-            "Empfehlung: ${recProtein}g Protein · ${recFat}g Fett · Rest mit Kohlenhydraten auffüllen",
+            stringResource(R.string.goals_recommendation, recProtein, recFat),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 
     HorizontalDivider()
-    Text("Makros & Kalorien", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.goals_macros_calories_header), style = MaterialTheme.typography.titleMedium)
 
     GoalField(
-        label = "Protein (g)",
+        label = stringResource(R.string.goals_protein_label),
         value = protein,
         onValueChange = { protein = it },
         accentColor = ProteinColor,
-        supportingText = "Empfehlung: 2,2g pro kg Körpergewicht",
+        supportingText = stringResource(R.string.goals_protein_supporting_text),
     )
 
     GoalField(
-        label = "Fett (g)",
+        label = stringResource(R.string.goals_fat_label),
         value = fat,
         onValueChange = { fat = it },
         accentColor = FatColor,
-        supportingText = "Empfehlung: 1g pro kg Körpergewicht",
+        supportingText = stringResource(R.string.goals_fat_supporting_text),
     )
 
     GoalField(
-        label = "Kohlenhydrate (g)",
+        label = stringResource(R.string.goals_carbs_label),
         value = carbs,
         onValueChange = { carbs = it },
         accentColor = CarbsColor,
@@ -233,12 +236,12 @@ private fun ColumnScope.GoalsSection(
             onClick = { carbs = calculatedCarbs.toInt().toString() },
             modifier = Modifier.align(Alignment.End),
         ) {
-            Text("Aus kcal & Makros berechnen (→ ${calculatedCarbs.toInt()}g)")
+            Text(stringResource(R.string.goals_carbs_calc_button, calculatedCarbs.toInt()))
         }
     }
 
     GoalField(
-        label = "Kalorien (kcal)",
+        label = stringResource(R.string.goals_kcal_label),
         value = kcal,
         onValueChange = { kcal = it },
         accentColor = CalorieColor,
@@ -248,7 +251,7 @@ private fun ColumnScope.GoalsSection(
             onClick = { kcal = calculatedKcal.toInt().toString() },
             modifier = Modifier.align(Alignment.End),
         ) {
-            Text("Aus Makros berechnen (→ ${calculatedKcal.toInt()} kcal)")
+            Text(stringResource(R.string.goals_kcal_calc_button, calculatedKcal.toInt()))
         }
     }
 
@@ -273,14 +276,13 @@ private fun ColumnScope.GoalsSection(
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
-                            "Kalorien stimmen nicht mit Makros überein",
+                            stringResource(R.string.goals_warning_title),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.error,
                         )
                         val sign = if (kcalDelta > 0) "+" else ""
                         Text(
-                            "Makros ergeben ${calculatedKcal.toInt()} kcal " +
-                                "(${sign}${kcalDelta.toInt()} kcal Unterschied)",
+                            stringResource(R.string.goals_warning_detail, calculatedKcal.toInt(), sign, kcalDelta.toInt()),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -292,13 +294,16 @@ private fun ColumnScope.GoalsSection(
 
     HorizontalDivider()
     GoalField(
-        label = "Zielgewicht (kg)",
+        label = stringResource(R.string.goals_target_weight_label),
         value = targetWeight,
         onValueChange = { targetWeight = it },
         decimal = true,
         suffix = "kg",
-        supportingText = "Optional — wird in der Gewichtsstatistik als Linie angezeigt",
+        supportingText = stringResource(R.string.goals_target_weight_supporting_text),
     )
+
+    // Resolved here (not inside the onClick lambda below, which isn't a @Composable context).
+    val goalsSavedMessage = stringResource(R.string.goals_saved_message)
 
     Spacer(Modifier.height(4.dp))
     Button(
@@ -313,12 +318,12 @@ private fun ColumnScope.GoalsSection(
                     targetWeightKg = targetWeight.normalizeDecimal().toDoubleOrNull(),
                 )
             )
-            scope.launch { snackbar.showSnackbar("Ziele gespeichert") }
+            scope.launch { snackbar.showSnackbar(goalsSavedMessage) }
         },
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
     ) {
-        Text("Speichern", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.common_save), style = MaterialTheme.typography.labelLarge)
     }
 }
 
@@ -333,7 +338,7 @@ private fun ColumnScope.DataSection(
 
     LaunchedEffect(dataState.message) {
         dataState.message?.let {
-            snackbar.showSnackbar(it)
+            snackbar.showSnackbar(it.toDisplayString(context))
             viewModel.clearMessage()
         }
     }
@@ -341,6 +346,9 @@ private fun ColumnScope.DataSection(
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { viewModel.import(it) }
     }
+
+    // Resolved here (not inside the onClick lambda below, which isn't a @Composable context).
+    val exportChooserTitle = stringResource(R.string.settings_export_chooser_title)
 
     if (dataState.isLoading) {
         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -354,7 +362,7 @@ private fun ColumnScope.DataSection(
                     putExtra(Intent.EXTRA_STREAM, uri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                context.startActivity(Intent.createChooser(intent, "Exportieren via"))
+                context.startActivity(Intent.createChooser(intent, exportChooserTitle))
             }
         },
         modifier = Modifier.fillMaxWidth(),
@@ -362,7 +370,7 @@ private fun ColumnScope.DataSection(
         shape = RoundedCornerShape(14.dp),
     ) {
         Icon(Icons.Rounded.FileDownload, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-        Text("Vollständiges Backup exportieren")
+        Text(stringResource(R.string.settings_export_button))
     }
 
     OutlinedButton(
@@ -372,7 +380,7 @@ private fun ColumnScope.DataSection(
         shape = RoundedCornerShape(14.dp),
     ) {
         Icon(Icons.Rounded.FileUpload, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-        Text("Backup importieren")
+        Text(stringResource(R.string.settings_import_button))
     }
 
     // Daily meal reminder toggle.
@@ -390,11 +398,10 @@ private fun ColumnScope.DataSection(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Tägliche Erinnerung", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.settings_reminder_title), style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Wenn du bis 17 Uhr noch keine Mahlzeit eingetragen hast, " +
-                        "schickt dir die App eine kurze Erinnerung.",
+                    stringResource(R.string.settings_reminder_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -420,6 +427,8 @@ private fun ColumnScope.DataSection(
 @Composable
 private fun ColumnScope.DonationSection() {
     val context = LocalContext.current
+    // Resolved here (not inside the onClick lambda below, which isn't a @Composable context).
+    val emailSubject = stringResource(R.string.settings_contact_email_subject)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -434,10 +443,9 @@ private fun ColumnScope.DonationSection() {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Gefällt dir Trainist?", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_donation_title), style = MaterialTheme.typography.titleMedium)
             Text(
-                "Die App wird von einer einzelnen Person in der Freizeit entwickelt. " +
-                    "Wenn sie dir hilft, freue ich mich über einen Kaffee.",
+                stringResource(R.string.settings_donation_body),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -454,12 +462,12 @@ private fun ColumnScope.DonationSection() {
                     contentDescription = null,
                     modifier = Modifier.padding(end = 8.dp),
                 )
-                Text("Kaffee spendieren")
+                Text(stringResource(R.string.settings_donation_cta))
             }
             OutlinedButton(
                 onClick = {
                     val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$DEVELOPER_CONTACT_EMAIL")).apply {
-                        putExtra(Intent.EXTRA_SUBJECT, "Trainist Feedback")
+                        putExtra(Intent.EXTRA_SUBJECT, emailSubject)
                     }
                     context.startActivity(intent)
                 },
@@ -471,7 +479,7 @@ private fun ColumnScope.DonationSection() {
                     contentDescription = null,
                     modifier = Modifier.padding(end = 8.dp),
                 )
-                Text("Entwickler kontaktieren")
+                Text(stringResource(R.string.settings_contact_developer_button))
             }
         }
     }

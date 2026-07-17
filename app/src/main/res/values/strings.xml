@@ -166,4 +166,55 @@
     <string name="templates_empty_title">Noch keine Vorlagen</string>
     <string name="templates_empty_body">Lege über das Plus-Symbol eine Workout-Vorlage an — oder starte direkt ein freies Workout.</string>
     <string name="templates_deleted_message">Vorlage gelöscht</string>
+
+    <!-- Shared goal-editor fields (ui/goals/GoalFields.kt content, used by SettingsScreen + OnboardingScreen) -->
+    <string name="goals_section_header">Tagesziele</string>
+    <string name="goals_body_weight_label">Körpergewicht (kg)</string>
+    <string name="goals_body_weight_apply_button">Übernehmen</string>
+    <string name="goals_recommendation">Empfehlung: %1$dg Protein · %2$dg Fett · Rest mit Kohlenhydraten auffüllen</string>
+    <string name="goals_macros_calories_header">Makros &amp; Kalorien</string>
+    <string name="goals_protein_label">Protein (g)</string>
+    <string name="goals_protein_supporting_text">Empfehlung: 2,2g pro kg Körpergewicht</string>
+    <string name="goals_fat_label">Fett (g)</string>
+    <string name="goals_fat_supporting_text">Empfehlung: 1g pro kg Körpergewicht</string>
+    <string name="goals_carbs_label">Kohlenhydrate (g)</string>
+    <string name="goals_carbs_calc_button">Aus kcal &amp; Makros berechnen (→ %1$dg)</string>
+    <string name="goals_kcal_label">Kalorien (kcal)</string>
+    <string name="goals_kcal_calc_button">Aus Makros berechnen (→ %1$d kcal)</string>
+    <string name="goals_warning_title">Kalorien stimmen nicht mit Makros überein</string>
+    <string name="goals_warning_detail">Makros ergeben %1$d kcal (%2$s%3$d kcal Unterschied)</string>
+    <string name="goals_target_weight_label">Zielgewicht (kg)</string>
+    <string name="goals_target_weight_supporting_text">Optional — wird in der Gewichtsstatistik als Linie angezeigt</string>
+    <string name="goals_saved_message">Ziele gespeichert</string>
+
+    <!-- SettingsScreen (ui/settings/SettingsScreen.kt) -->
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_data_section_header">Daten</string>
+    <string name="settings_support_section_header">Unterstützung</string>
+    <string name="settings_version_footer">Version %1$s</string>
+    <string name="settings_export_button">Vollständiges Backup exportieren</string>
+    <string name="settings_export_chooser_title">Exportieren via</string>
+    <string name="settings_import_button">Backup importieren</string>
+    <string name="settings_reminder_title">Tägliche Erinnerung</string>
+    <string name="settings_reminder_description">Wenn du bis 17 Uhr noch keine Mahlzeit eingetragen hast, schickt dir die App eine kurze Erinnerung.</string>
+    <string name="settings_donation_title">Gefällt dir Trainist?</string>
+    <string name="settings_donation_body">Die App wird von einer einzelnen Person in der Freizeit entwickelt. Wenn sie dir hilft, freue ich mich über einen Kaffee.</string>
+    <string name="settings_donation_cta">Kaffee spendieren</string>
+    <string name="settings_contact_developer_button">Entwickler kontaktieren</string>
+    <string name="settings_contact_email_subject">Trainist Feedback</string>
+
+    <!-- Backup export/import result messages (ui/data/DataViewModel.kt) — resolved via
+         context.getString() in ui/data/DataMessageFormat.kt, not stringResource() (ViewModels
+         have no Compose context). -->
+    <string name="data_export_failed">Export fehlgeschlagen: %1$s</string>
+    <string name="data_import_failed">Import fehlgeschlagen: %1$s</string>
+    <string name="data_import_nothing">Nichts importiert</string>
+    <string name="data_import_food_entries">%1$d Lebensmitteleinträge</string>
+    <string name="data_import_food_skipped">(%1$d übersprungen)</string>
+    <string name="data_import_weight_entries">%1$d Gewichtseinträge</string>
+    <string name="data_import_goal_restored">Ziele wiederhergestellt</string>
+    <string name="data_import_custom_foods">%1$d eigene Lebensmittel</string>
+    <string name="data_import_exercises">%1$d eigene Übungen</string>
+    <string name="data_import_templates">%1$d Vorlagen</string>
+    <string name="data_import_sessions">%1$d Einheiten</string>
 </resources>
