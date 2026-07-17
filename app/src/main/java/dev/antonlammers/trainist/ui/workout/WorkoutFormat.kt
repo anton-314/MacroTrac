@@ -1,5 +1,7 @@
 package dev.antonlammers.trainist.ui.workout
 
+import dev.antonlammers.trainist.ui.util.currentAppLocale
+
 /**
  * Shared number ↔ text helpers for the workout set-entry UI (live session and history editing), so
  * both screens parse and render weights/reps identically.
@@ -8,7 +10,10 @@ package dev.antonlammers.trainist.ui.workout
 /** Formats a kg value: whole numbers without decimals, otherwise rounded to one decimal. */
 internal fun formatKg(value: Double): String {
     val rounded = kotlin.math.round(value * 10.0) / 10.0
-    return if (rounded % 1.0 == 0.0) rounded.toInt().toString() else "%.1f".format(rounded)
+    // Explicit locale: "%.1f".format(rounded) without one uses the JVM default locale, which can
+    // diverge from the app's chosen language below API 33 (e.g. a German-region device set to
+    // English in-app would still render a comma decimal separator).
+    return if (rounded % 1.0 == 0.0) rounded.toInt().toString() else "%.1f".format(currentAppLocale(), rounded)
 }
 
 internal fun parseWeight(text: String): Double = text.replace(',', '.').toDoubleOrNull() ?: 0.0

@@ -68,6 +68,7 @@ import dev.antonlammers.trainist.notification.RestTimerScheduler
 import dev.antonlammers.trainist.ui.components.DragReorderColumn
 import dev.antonlammers.trainist.ui.components.NumericTextField
 import dev.antonlammers.trainist.ui.navigation.Screen
+import dev.antonlammers.trainist.ui.util.currentAppLocale
 
 /**
  * The live-session screen (spec §3.3, grundgerüst). Renders [WorkoutSessionViewModel]'s ui state:
@@ -545,6 +546,6 @@ private val REST_PRESETS = listOf(30, 60, 90, 120, 150, 180, 240)
 
 private fun formatMmSs(totalSeconds: Int): String {
     val safe = totalSeconds.coerceAtLeast(0)
-    return "%d:%02d".format(safe / 60, safe % 60)
+    return "%d:%02d".format(currentAppLocale(), safe / 60, safe % 60)
 }
 

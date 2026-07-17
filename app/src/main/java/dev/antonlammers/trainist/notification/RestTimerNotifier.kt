@@ -17,6 +17,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import dev.antonlammers.trainist.MainActivity
 import dev.antonlammers.trainist.R
+import dev.antonlammers.trainist.ui.util.currentAppLocale
 
 /**
  * Builds and posts the rest-timer notifications, all under one notification id so each state
@@ -185,7 +186,7 @@ object RestTimerNotifier {
 
     private fun formatMmSs(totalSeconds: Int): String {
         val safe = totalSeconds.coerceAtLeast(0)
-        return "%d:%02d".format(safe / 60, safe % 60)
+        return "%d:%02d".format(currentAppLocale(), safe / 60, safe % 60)
     }
 
     private fun ensureChannels(context: Context) {
