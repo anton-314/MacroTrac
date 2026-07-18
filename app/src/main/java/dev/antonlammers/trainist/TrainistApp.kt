@@ -2,6 +2,7 @@ package dev.antonlammers.trainist
 
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
+import dev.antonlammers.trainist.data.repository.SettingsRepositoryImpl
 import dev.antonlammers.trainist.data.seed.ExerciseCatalogSeeder
 import dev.antonlammers.trainist.notification.MealReminderScheduler
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +20,9 @@ class TrainistApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Re-apply the persisted per-app language before any Activity is created (API < 33 only;
+        // 33+ persists it in the framework LocaleManager natively).
+        SettingsRepositoryImpl.applyPersistedAppLanguage(this)
         // Keep the daily reminder aligned to the next 17:00. The worker itself respects the
         // enable/disable setting, so scheduling unconditionally here is safe.
         MealReminderScheduler.schedule(this)
