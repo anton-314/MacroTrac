@@ -8,11 +8,8 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Backup
@@ -24,15 +21,16 @@ import androidx.compose.material.icons.rounded.VolunteerActivism
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,7 +46,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import dev.antonlammers.trainist.BuildConfig
 import dev.antonlammers.trainist.R
+import dev.antonlammers.trainist.ui.data.DataSheet
 import dev.antonlammers.trainist.ui.data.DataViewModel
+import dev.antonlammers.trainist.ui.data.toDisplayString
 import dev.antonlammers.trainist.ui.goals.GoalsViewModel
 import dev.antonlammers.trainist.ui.navigation.Screen
 import dev.antonlammers.trainist.ui.util.findActivity
@@ -56,9 +56,9 @@ import dev.antonlammers.trainist.ui.util.findActivity
 /**
  * Settings hub — a short list of grouped rows, not a scroll of inline forms.
  *
- * Anything with more than one control gets its own sub-screen (goals, backup, support), the same way
- * the Training tab's root delegates to its editor/session/history screens. Rows report their current
- * value inline (the calorie goal, the picked language) so the common case needs no tap at all.
+ * Rows report their current value inline (the calorie goal, the picked language) so the common case
+ * needs no tap at all. Tapping one opens a [SettingsSheet] over the hub; only the goal editor, a
+ * real form, is a pushed screen of its own.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,8 +68,32 @@ fun SettingsScreen(
     dataViewModel: DataViewModel = hiltViewModel(),
     languageViewModel: LanguageViewModel = hiltViewModel(),
 ) {
+    val snackbar = remember { SnackbarHostState() }
+    val dataState by dataViewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var showDataSheet by remember { mutableStateOf(false) }
+    var showSupportSheet by remember { mutableStateOf(false) }
+
+    // A finished export/import closes the sheet and reports here: a snackbar shown while the modal
+    // sheet is up would render behind it.
+    LaunchedEffect(dataState.message) {
+        dataState.message?.let {
+            showDataSheet = false
+            snackbar.showSnackbar(it.toDisplayString(context))
+            dataViewModel.clearMessage()
+        }
+    }
+
+    if (showDataSheet) {
+        DataSheet(viewModel = dataViewModel, onDismiss = { showDataSheet = false })
+    }
+    if (showSupportSheet) {
+        SupportSheet(onDismiss = { showSupportSheet = false })
+    }
+
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.settings_title)) }) },
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -91,17 +115,21 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Rounded.Backup,
                     title = stringResource(R.string.settings_data_row_title),
-                    onClick = { navController.navigate(Screen.DataBackup.route) },
+                    onClick = { showDataSheet = true },
                     trailing = { Chevron() },
                 )
                 SettingsRowDivider()
                 SettingsRow(
                     icon = Icons.Rounded.VolunteerActivism,
                     title = stringResource(R.string.settings_support_row_title),
-                    onClick = { navController.navigate(Screen.Support.route) },
+                    onClick = { showSupportSheet = true },
                     trailing = { Chevron() },
                 )
             }
+
+            // Also on the support sheet, but repeated here on purpose: a donation the user has to go
+            // looking for is a donation that doesn't happen.
+            DonateButton(modifier = Modifier.padding(top = 20.dp))
 
             VersionFooter()
             SettingsBottomSpacer()
@@ -220,36 +248,19 @@ private fun String?.languageDisplayName(): String = when (this) {
     else -> this
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LanguagePickerSheet(
     selected: String?,
     onSelect: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState()
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        modifier = Modifier.statusBarsPadding(),
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
+    SettingsSheet(
+        title = stringResource(R.string.settings_language_picker_title),
+        onDismiss = onDismiss,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(bottom = 8.dp),
-        ) {
-            Text(
-                stringResource(R.string.settings_language_picker_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-            )
-            LanguageOptionRow(null, selected, stringResource(R.string.settings_language_system), onSelect)
-            LanguageOptionRow("de", selected, stringResource(R.string.settings_language_german), onSelect)
-            LanguageOptionRow("en", selected, stringResource(R.string.settings_language_english), onSelect)
-        }
+        LanguageOptionRow(null, selected, stringResource(R.string.settings_language_system), onSelect)
+        LanguageOptionRow("de", selected, stringResource(R.string.settings_language_german), onSelect)
+        LanguageOptionRow("en", selected, stringResource(R.string.settings_language_english), onSelect)
     }
 }
 
@@ -259,7 +270,7 @@ private fun LanguageOptionRow(tag: String?, selected: String?, label: String, on
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onSelect(tag) }
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = SHEET_CONTENT_PADDING, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {

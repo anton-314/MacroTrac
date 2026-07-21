@@ -195,7 +195,6 @@
 
     <!-- SettingsScreen (ui/settings/SettingsScreen.kt) -->
     <string name="settings_title">Settings</string>
-    <string name="settings_support_section_header">Support</string>
     <string name="settings_version_footer">Version %1$s</string>
     <string name="settings_export_button">Export full backup</string>
     <string name="settings_export_chooser_title">Export via</string>
@@ -205,9 +204,11 @@
     <string name="settings_donation_title">Enjoying Trainist?</string>
     <string name="settings_donation_body">The app is developed by a single person in their spare time. If it helps you, I\'d appreciate a coffee.</string>
     <string name="settings_donation_cta">Buy me a coffee</string>
-    <string name="settings_contact_developer_button">Contact developer</string>
-    <string name="settings_contact_email_subject">Trainist Feedback</string>
-    <string name="settings_contact_email_body">\n\n---\nTrainist %1$s</string>
+    <string name="settings_contact_title">Feedback &amp; suggestions</string>
+    <string name="settings_contact_prompt">Missing a feature? Something bugging you? Tell me what you\'d like to see — every message feeds into the next version.</string>
+    <string name="settings_contact_developer_button">Send feedback</string>
+    <string name="settings_contact_email_subject">Trainist — Feedback &amp; suggestions</string>
+    <string name="settings_contact_email_body">What do you like, what don\'t you?\n\n\nWhich feature would you like to see?\n\n\n---\nTrainist %1$s</string>
     <string name="settings_group_nutrition">NUTRITION</string>
     <string name="settings_group_notifications">NOTIFICATIONS</string>
     <string name="settings_group_app">APP</string>

@@ -27,10 +27,9 @@ import androidx.compose.ui.unit.dp
 /**
  * The settings hub's building blocks.
  *
- * The hub is a short list of grouped rows rather than a long scroll of inline forms: anything with
- * more than one control (goal editing, backup, support) lives on its own sub-screen, mirroring how
- * the Training tab's root delegates to the editor/session/history screens. What stays inline is only
- * what fits a single row — a switch, or a value that opens a picker sheet.
+ * The hub is a short list of grouped rows rather than a long scroll of inline forms. What stays
+ * inline is only what fits a single row (a switch, or a value); everything else opens a
+ * [SettingsSheet] over the hub. Only a real editing form — the goal editor — is a pushed screen.
  */
 
 /** Mono-uppercase caption above a group of related rows. */
