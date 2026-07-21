@@ -195,7 +195,6 @@
 
     <!-- SettingsScreen (ui/settings/SettingsScreen.kt) -->
     <string name="settings_title">Einstellungen</string>
-    <string name="settings_data_section_header">Daten</string>
     <string name="settings_support_section_header">Unterstützung</string>
     <string name="settings_version_footer">Version %1$s</string>
     <string name="settings_export_button">Vollständiges Backup exportieren</string>
@@ -208,6 +207,14 @@
     <string name="settings_donation_cta">Kaffee spendieren</string>
     <string name="settings_contact_developer_button">Entwickler kontaktieren</string>
     <string name="settings_contact_email_subject">Trainist Feedback</string>
+    <string name="settings_contact_email_body">\n\n---\nTrainist %1$s</string>
+    <string name="settings_group_nutrition">ERNÄHRUNG</string>
+    <string name="settings_group_notifications">BENACHRICHTIGUNGEN</string>
+    <string name="settings_group_app">APP</string>
+    <string name="settings_goals_row_value">%1$d kcal</string>
+    <string name="settings_support_row_title">Trainist unterstützen</string>
+    <string name="settings_data_row_title">Daten &amp; Backup</string>
+    <string name="settings_data_description">Sichere alle Daten — Ernährung und Training — als ZIP-Datei oder stelle sie aus einem Backup wieder her.</string>
 
     <!-- Backup export/import result messages (ui/data/DataViewModel.kt) — resolved via
          context.getString() in ui/data/DataMessageFormat.kt, not stringResource() (ViewModels

@@ -37,7 +37,10 @@ import dev.antonlammers.trainist.R
 import dev.antonlammers.trainist.ui.addfood.AddFoodScreen
 import dev.antonlammers.trainist.ui.addfood.BarcodeScannerScreen
 import dev.antonlammers.trainist.ui.overview.OverviewScreen
+import dev.antonlammers.trainist.ui.data.DataScreen
+import dev.antonlammers.trainist.ui.goals.GoalsScreen
 import dev.antonlammers.trainist.ui.settings.SettingsScreen
+import dev.antonlammers.trainist.ui.settings.SupportScreen
 import dev.antonlammers.trainist.ui.stats.StatsScreen
 import dev.antonlammers.trainist.ui.workout.ExerciseCatalogScreen
 import dev.antonlammers.trainist.ui.workout.ExerciseDetailScreen
@@ -69,6 +72,11 @@ sealed class Screen(val route: String) {
     object BarcodeScanner : Screen("barcode_scanner")
     object Stats : Screen("stats")
     object Settings : Screen("settings")
+
+    // Settings sub-screens — absent from bottomNavItems, so the bar hides itself on each.
+    object Goals : Screen("goals")
+    object DataBackup : Screen("data_backup")
+    object Support : Screen("support")
 }
 
 private data class BottomNavItem(
@@ -138,6 +146,9 @@ fun AppNavigation(
             composable(Screen.BarcodeScanner.route) { BarcodeScannerScreen(navController) }
             composable(Screen.Stats.route) { StatsScreen(navController) }
             composable(Screen.Settings.route) { SettingsScreen(navController) }
+            composable(Screen.Goals.route) { GoalsScreen(navController) }
+            composable(Screen.DataBackup.route) { DataScreen(navController) }
+            composable(Screen.Support.route) { SupportScreen(navController) }
         }
         if (showBottomNav) {
             // Flat nav bar: hairline top border replaces Material's tonal elevation.
