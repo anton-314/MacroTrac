@@ -139,7 +139,7 @@ private fun WelcomeStep(
     }
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { dataViewModel.import(it, onSuccess = onImported) }
+        uri?.let { dataViewModel.import(it.toString(), onSuccess = onImported) }
     }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { padding ->

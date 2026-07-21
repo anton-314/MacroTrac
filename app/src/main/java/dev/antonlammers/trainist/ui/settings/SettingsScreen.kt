@@ -357,7 +357,7 @@ private fun ColumnScope.DataSection(
     }
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { viewModel.import(it) }
+        uri?.let { viewModel.import(it.toString()) }
     }
 
     // Resolved here (not inside the onClick lambda below, which isn't a @Composable context).
@@ -372,7 +372,7 @@ private fun ColumnScope.DataSection(
             viewModel.export { uri ->
                 val intent = Intent(Intent.ACTION_SEND).apply {
                     type = "application/zip"
-                    putExtra(Intent.EXTRA_STREAM, uri)
+                    putExtra(Intent.EXTRA_STREAM, Uri.parse(uri))
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 context.startActivity(Intent.createChooser(intent, exportChooserTitle))

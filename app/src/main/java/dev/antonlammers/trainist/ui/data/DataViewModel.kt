@@ -1,11 +1,10 @@
 package dev.antonlammers.trainist.ui.data
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.antonlammers.trainist.data.backup.BackupExporter
-import dev.antonlammers.trainist.data.backup.BackupImporter
+import dev.antonlammers.trainist.domain.backup.BackupExporter
+import dev.antonlammers.trainist.domain.backup.BackupImporter
 import dev.antonlammers.trainist.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,7 +34,8 @@ class DataViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setReminderEnabled(enabled) }
     }
 
-    fun export(onUri: (Uri) -> Unit) {
+    /** @param onUri receives the backup's URI in string form — the UI parses it back into a `Uri`. */
+    fun export(onUri: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             runCatching { exporter.export() }
@@ -54,7 +54,7 @@ class DataViewModel @Inject constructor(
      * without throwing — used by the onboarding quick-start to advance into the app once a backup
      * has been restored. Callers that don't care (the Settings screen) omit it.
      */
-    fun import(uri: Uri, onSuccess: () -> Unit = {}) {
+    fun import(uri: String, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             runCatching { importer.import(uri) }

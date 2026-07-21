@@ -1,9 +1,9 @@
 package dev.antonlammers.trainist.data.backup
 
 import android.content.Context
-import android.net.Uri
 import androidx.core.content.FileProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.antonlammers.trainist.domain.backup.BackupExporter
 import dev.antonlammers.trainist.domain.model.DailyGoal
 import dev.antonlammers.trainist.domain.model.Exercise
 import dev.antonlammers.trainist.domain.model.Food
@@ -27,7 +27,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class BackupExporter @Inject constructor(
+class BackupExporterImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val foodEntryRepository: FoodEntryRepository,
     private val weightRepository: WeightRepository,
@@ -36,8 +36,8 @@ class BackupExporter @Inject constructor(
     private val exerciseCatalogRepository: ExerciseCatalogRepository,
     private val workoutTemplateRepository: WorkoutTemplateRepository,
     private val workoutSessionRepository: WorkoutSessionRepository,
-) {
-    suspend fun export(): Uri {
+) : BackupExporter {
+    override suspend fun export(): String {
         val foodEntries = foodEntryRepository.allEntries()
             .sortedWith(compareBy({ it.date.toString() }, { it.timestampMs }))
         val weightEntries = weightRepository.allEntries()
@@ -65,7 +65,7 @@ class BackupExporter @Inject constructor(
             zip.putEntry(WorkoutBackupEntries.SET_ENTRIES, buildSetEntriesCsv(sessions))
         }
 
-        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file).toString()
     }
 
     private fun ZipOutputStream.putEntry(name: String, content: String) {

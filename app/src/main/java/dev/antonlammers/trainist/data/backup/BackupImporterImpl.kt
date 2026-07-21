@@ -3,6 +3,7 @@ package dev.antonlammers.trainist.data.backup
 import android.content.Context
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.antonlammers.trainist.domain.backup.BackupImporter
 import dev.antonlammers.trainist.domain.repository.CustomFoodRepository
 import dev.antonlammers.trainist.domain.repository.ExerciseCatalogRepository
 import dev.antonlammers.trainist.domain.repository.FoodEntryRepository
@@ -50,7 +51,7 @@ internal class ImportTargets(
 )
 
 @Singleton
-class BackupImporter @Inject constructor(
+class BackupImporterImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val foodEntryRepository: FoodEntryRepository,
     private val weightRepository: WeightRepository,
@@ -59,36 +60,28 @@ class BackupImporter @Inject constructor(
     private val exerciseCatalogRepository: ExerciseCatalogRepository,
     private val workoutTemplateRepository: WorkoutTemplateRepository,
     private val workoutSessionRepository: WorkoutSessionRepository,
-) {
-    data class Result(
-        val foodImported: Int = 0,
-        val foodSkipped: Int = 0,
-        val weightImported: Int = 0,
-        val goalRestored: Boolean = false,
-        val customFoodsImported: Int = 0,
-        val exercisesImported: Int = 0,
-        val templatesImported: Int = 0,
-        val sessionsImported: Int = 0,
-    )
+) : BackupImporter {
 
     private val targets = ImportTargets(
         foodEntryRepository, weightRepository, goalRepository, customFoodRepository,
         exerciseCatalogRepository, workoutTemplateRepository, workoutSessionRepository,
     )
 
-    suspend fun import(uri: Uri): Result =
-        if (isZip(uri)) {
-            context.contentResolver.openInputStream(uri)?.use { input ->
+    override suspend fun import(uri: String): BackupImporter.Result {
+        val parsed = Uri.parse(uri)
+        return if (isZip(parsed)) {
+            context.contentResolver.openInputStream(parsed)?.use { input ->
                 importZipEntries(input, targets)
-            } ?: Result()
+            } ?: BackupImporter.Result()
         } else {
-            val lines = context.contentResolver.openInputStream(uri)
+            val lines = context.contentResolver.openInputStream(parsed)
                 ?.bufferedReader(Charsets.UTF_8)
                 ?.readLines()
                 ?.filter { it.isNotBlank() }
-                ?: return Result()
+                ?: return BackupImporter.Result()
             importCsvLines(lines, targets)
         }
+    }
 
     private fun isZip(uri: Uri): Boolean =
         context.contentResolver.openInputStream(uri)?.use { stream ->
