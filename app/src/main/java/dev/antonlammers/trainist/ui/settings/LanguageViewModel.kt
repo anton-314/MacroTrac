@@ -13,7 +13,7 @@ import javax.inject.Inject
 /**
  * The Settings hub's language picker: reads/writes the per-app language via [SettingsRepository],
  * which delegates to `AppCompatDelegate` (already persists the choice itself). `tag` is a BCP-47
- * language tag ("de", "en"), or `null` to follow the system language.
+ * language tag ("de", "en", "fr", "es"), or `null` to follow the system language.
  */
 @HiltViewModel
 class LanguageViewModel @Inject constructor(

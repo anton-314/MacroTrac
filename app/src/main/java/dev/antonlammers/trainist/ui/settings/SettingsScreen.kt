@@ -245,6 +245,8 @@ private fun String?.languageDisplayName(): String = when (this) {
     null -> stringResource(R.string.settings_language_system)
     "de" -> stringResource(R.string.settings_language_german)
     "en" -> stringResource(R.string.settings_language_english)
+    "fr" -> stringResource(R.string.settings_language_french)
+    "es" -> stringResource(R.string.settings_language_spanish)
     else -> this
 }
 
@@ -261,6 +263,8 @@ private fun LanguagePickerSheet(
         LanguageOptionRow(null, selected, stringResource(R.string.settings_language_system), onSelect)
         LanguageOptionRow("de", selected, stringResource(R.string.settings_language_german), onSelect)
         LanguageOptionRow("en", selected, stringResource(R.string.settings_language_english), onSelect)
+        LanguageOptionRow("fr", selected, stringResource(R.string.settings_language_french), onSelect)
+        LanguageOptionRow("es", selected, stringResource(R.string.settings_language_spanish), onSelect)
     }
 }
 
